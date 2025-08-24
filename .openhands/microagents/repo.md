@@ -9,6 +9,7 @@ This repository contains educational code examples and tutorials for the CMU Lan
 ## Development Guidelines
 - Python files should include jupytext headers and markdown cells for notebook generation
 - Use `jupytext --to notebook script.py` to generate notebooks from Python scripts
+- All notebooks must include a "Open in Colab" badge linking to the GitHub notebook file
 - Ensure all code is well-documented and educational in nature
 - Include proper imports and dependencies
 - Test both Python script and notebook versions before committing
@@ -21,6 +22,7 @@ The main dependencies are: torch, transformers, matplotlib, seaborn, numpy, pand
 - Use markdown cells in Python files (# %% [markdown]) for documentation
 - Focus on demonstrating concepts rather than production optimization
 - Include examples and visualizations where appropriate
+- Colab badge format: `[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/neubig/lminference-fall2025-code/blob/main/XX-topic/filename.ipynb)`
 
 ## Testing
 - Verify that Python scripts run correctly
