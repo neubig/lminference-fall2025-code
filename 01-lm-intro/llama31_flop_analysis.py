@@ -15,6 +15,8 @@
 # %% [markdown]
 # # Llama 3.1 FLOP Analysis and Visualization
 # 
+# [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/neubig/lminference-fall2025-code/blob/main/01-lm-intro/llama31_flop_analysis.ipynb)
+# 
 # This notebook analyzes the computational requirements (FLOPs) of different Llama 3.1 model variants
 # and visualizes how these requirements scale with context length and model size.
 # 

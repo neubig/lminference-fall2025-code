@@ -15,6 +15,8 @@
 # %% [markdown]
 # # Qwen Model Completion Analysis
 # 
+# [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/neubig/lminference-fall2025-code/blob/main/01-lm-intro/qwen_completions.ipynb)
+# 
 # This notebook demonstrates text generation using the Qwen 3-1.7B-Base model and analyzes
 # the probability distributions of generated completions.
 # 

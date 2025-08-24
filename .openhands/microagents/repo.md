@@ -1,7 +1,7 @@
 This repository contains educational code examples and tutorials for the CMU Language Model Inference course (Fall 2025).
 
 ## Repository Structure
-- Each class/topic has its own directory (e.g., `lm-intro/`)
+- Each class/topic has its own directory with class numbering (e.g., `01-lm-intro/`)
 - Python scripts (`.py`) are the canonical source code
 - Jupyter notebooks (`.ipynb`) are generated from Python scripts using `jupytext`
 - All code should be both executable as scripts and readable as educational notebooks
