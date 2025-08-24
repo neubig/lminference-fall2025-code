@@ -19,7 +19,7 @@ The repository is organized by class/topic, with each directory containing:
 
 ### Current Content
 
-#### `lm-intro/` - Language Model Introduction
+#### `01-lm-intro/` - Class 01: Language Model Introduction
 - **`llama31_flop_analysis.py/.ipynb`** - Analysis of computational requirements (FLOPs) for Llama 3.1 models
   - FLOP scaling with context length and model size
   - Distribution of computation across model components
@@ -44,17 +44,20 @@ Each topic directory contains both Python scripts and Jupyter notebooks:
 
 **Python Scripts:**
 ```bash
-cd lm-intro/
+cd 01-lm-intro/
 python llama31_flop_analysis.py
 python qwen_completions.py
 ```
 
 **Jupyter Notebooks:**
 ```bash
-cd lm-intro/
+cd 01-lm-intro/
 jupyter notebook llama31_flop_analysis.ipynb
 jupyter notebook qwen_completions.ipynb
 ```
+
+**Google Colab:**
+Each notebook includes a "Open in Colab" badge at the top for easy cloud execution.
 
 ### Code Organization
 
