@@ -246,15 +246,15 @@ bos_highest, bos_lowest, bos_central = generator.select_completions_by_probabili
 print(f"\nGenerated {len(bos_completions)} completions from BOS token")
 print(f"Unique completions: {len(set(comp[0] for comp in bos_completions))}")
 
-print("\n🔥 HIGHEST Probability Completions:")
+print("\nHIGHEST Probability Completions:")
 for i, (text, prob) in enumerate(bos_highest, 1):
     print(f"{i:2d}. (log_prob: {prob:7.4f}) '{text}'")
 
-print("\n❄️  LOWEST Probability Completions:")
+print("\nLOWEST Probability Completions:")
 for i, (text, prob) in enumerate(bos_lowest, 1):
     print(f"{i:2d}. (log_prob: {prob:7.4f}) '{text}'")
 
-print("\n📊 MEDIAN Probability Completions:")
+print("\nMEDIAN Probability Completions:")
 for i, (text, prob) in enumerate(bos_central, 1):
     print(f"{i:2d}. (log_prob: {prob:7.4f}) '{text}'")
 
@@ -275,15 +275,15 @@ cmu_highest, cmu_lowest, cmu_central = generator.select_completions_by_probabili
 print(f"\nGenerated {len(cmu_completions)} completions for prompt: '{cmu_prompt}'")
 print(f"Unique completions: {len(set(comp[0] for comp in cmu_completions))}")
 
-print("\n🔥 HIGHEST Probability Completions:")
+print("\nHIGHEST Probability Completions:")
 for i, (text, prob) in enumerate(cmu_highest, 1):
     print(f"{i:2d}. (log_prob: {prob:7.4f}) '{cmu_prompt} {text}'")
 
-print("\n❄️  LOWEST Probability Completions:")
+print("\nLOWEST Probability Completions:")
 for i, (text, prob) in enumerate(cmu_lowest, 1):
     print(f"{i:2d}. (log_prob: {prob:7.4f}) '{cmu_prompt} {text}'")
 
-print("\n📊 MEDIAN Probability Completions:")
+print("\nMEDIAN Probability Completions:")
 for i, (text, prob) in enumerate(cmu_central, 1):
     print(f"{i:2d}. (log_prob: {prob:7.4f}) '{cmu_prompt} {text}'")
 
@@ -319,25 +319,25 @@ cmu_stats = {
     'median': np.median(cmu_probs)
 }
 
-print("\n📈 BOS Token Completions Statistics:")
+print("\nBOS Token Completions Statistics:")
 print(f"   Mean log probability: {bos_stats['mean']:8.4f}")
 print(f"   Standard deviation:   {bos_stats['std']:8.4f}")
 print(f"   Minimum:             {bos_stats['min']:8.4f}")
 print(f"   Maximum:             {bos_stats['max']:8.4f}")
 print(f"   Median:              {bos_stats['median']:8.4f}")
 
-print("\n📈 CMU Prompt Completions Statistics:")
+print("\nCMU Prompt Completions Statistics:")
 print(f"   Mean log probability: {cmu_stats['mean']:8.4f}")
 print(f"   Standard deviation:   {cmu_stats['std']:8.4f}")
 print(f"   Minimum:             {cmu_stats['min']:8.4f}")
 print(f"   Maximum:             {cmu_stats['max']:8.4f}")
 print(f"   Median:              {cmu_stats['median']:8.4f}")
 
-print(f"\n🔍 Comparison:")
+print(f"\nComparison:")
 print(f"   Mean difference (CMU - BOS): {cmu_stats['mean'] - bos_stats['mean']:8.4f}")
 print(f"   Std difference (CMU - BOS):  {cmu_stats['std'] - bos_stats['std']:8.4f}")
 
-print(f"\n🖥️  System Information:")
+print(f"\nSystem Information:")
 print(f"   Device used: {generator.device}")
 print(f"   Model: {generator.model_name}")
 print(f"   Torch version: {torch.__version__}")
