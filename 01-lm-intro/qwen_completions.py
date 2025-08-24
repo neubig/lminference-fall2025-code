@@ -121,36 +121,19 @@ def generate_completion(self, prompt: str, max_length: int = 50) -> Tuple[str, f
 
     # Generate with sampling and probability tracking
     with torch.no_grad():
-        try:
-            output = self.model.generate(
-                inputs.input_ids,
-                attention_mask=inputs.attention_mask,
-                max_new_tokens=max_length,
-                do_sample=True,
-                temperature=1.0,
-                pad_token_id=eos_id,
-                eos_token_id=eos_id,
-                return_dict_in_generate=True,
-                output_scores=True,
-                top_k=50,
-                top_p=0.95
-            )
-        except Exception as e:
-            logger.warning(f"Generation failed: {e}. Trying with fallback parameters...")
-            # Fallback with more conservative parameters
-            output = self.model.generate(
-                inputs.input_ids,
-                attention_mask=inputs.attention_mask,
-                max_new_tokens=max_length,
-                do_sample=True,
-                temperature=0.8,
-                pad_token_id=eos_id,
-                eos_token_id=eos_id,
-                return_dict_in_generate=True,
-                output_scores=True,
-                top_k=40,
-                top_p=0.9
-            )
+        output = self.model.generate(
+            inputs.input_ids,
+            attention_mask=inputs.attention_mask,
+            max_new_tokens=max_length,
+            do_sample=True,
+            temperature=1.0,
+            pad_token_id=eos_id,
+            eos_token_id=eos_id,
+            return_dict_in_generate=True,
+            output_scores=True,
+            top_k=50,
+            top_p=0.95
+        )
 
         # Extract generated tokens (excluding input)
         gen_ids = output.sequences[0][input_length:]
