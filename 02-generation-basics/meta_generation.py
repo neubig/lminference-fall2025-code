@@ -435,34 +435,33 @@ def analyze_model_agreement(results: list[GenerationResult]) -> None:
         )
 
 
-def run_comprehensive_analysis(results: list[GenerationResult]) -> None:
-    """Run comprehensive analysis on meta-generation results."""
+def show_medium_preferred_examples(results: list[GenerationResult]) -> None:
+    """Show examples where the medium model assigns higher probability than the small model."""
 
-    # Sort and analyze results
-    sorted_results = analyze_and_sort_results(results)
+    # Filter and sort by cases where medium model has higher score
+    medium_preferred = [r for r in results if r.medium_per_token_log_prob > r.small_per_token_log_prob]
+    medium_preferred.sort(key=lambda r: r.medium_per_token_log_prob - r.small_per_token_log_prob, reverse=True)
 
-    # Analyze model agreement patterns
-    analyze_model_agreement(results)
-
-    # Additional insights
     print("\n" + "=" * 60)
-    print("SUMMARY INSIGHTS")
+    print("EXAMPLES WHERE MEDIUM MODEL ASSIGNS HIGHER PROBABILITY")
     print("=" * 60)
 
-    avg_small_score = sum(r.small_per_token_log_prob for r in results) / len(results)
-    avg_medium_score = sum(r.medium_per_token_log_prob for r in results) / len(results)
+    if not medium_preferred:
+        print("\nNo examples found where medium model assigns higher probability.")
+        return
 
-    print(f"\nAverage per-token log probabilities:")
-    print(f"Small model: {avg_small_score:.3f}")
-    print(f"Medium model: {avg_medium_score:.3f}")
+    print(f"\nFound {len(medium_preferred)} examples where medium model prefers the text:")
+    print(f"Showing top {min(10, len(medium_preferred))} examples sorted by preference difference:\n")
 
-    if avg_medium_score > avg_small_score:
-        print(f"→ Medium model generally assigns higher probabilities (+{avg_medium_score - avg_small_score:.3f})")
-    else:
-        print(f"→ Small model generally assigns higher probabilities (+{avg_small_score - avg_medium_score:.3f})")
+    for i, result in enumerate(medium_preferred[:10]):
+        difference = result.medium_per_token_log_prob - result.small_per_token_log_prob
+        print(f"{i+1}. Text: '{result.generated_text[:80]}...'")
+        print(
+            f"   Small: {result.small_per_token_log_prob:.3f}, Medium: {result.medium_per_token_log_prob:.3f}, Diff: +{difference:.3f}\n"
+        )
 
 
 # %%
-# Run comprehensive analysis on demo results
+# Show examples where medium model assigns higher probability
 if "demo_results" in locals():
-    run_comprehensive_analysis(demo_results)
+    show_medium_preferred_examples(demo_results)
