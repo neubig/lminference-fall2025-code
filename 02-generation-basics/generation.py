@@ -196,7 +196,7 @@ def demonstrate_temperature_sampling() -> dict[float, list[str]]:
 # ## 2. Evaluation and Analysis
 #
 # Now that we've seen basic temperature sampling in action, let's systematically evaluate different temperature settings using quantitative metrics:
-# 1. **Diversity**: Ratio of unique words to total words (higher = more diverse)
+# 1. **Diversity**: Cross-generation diversity using bigram uniqueness across multiple generations (higher = more diverse outputs)
 # 2. **Generation Speed**: Time taken to generate text
 # 3. **Fluency**: Quality assessment using an external API (optional)
 #
@@ -225,7 +225,7 @@ class GenerationResult:
 
 def calculate_diversity(text: str) -> float:
     """
-    Calculate text diversity as unique word ratio.
+    Calculate text diversity as unique word ratio within a single text.
 
     Args:
         text: Generated text to analyze
@@ -237,6 +237,45 @@ def calculate_diversity(text: str) -> float:
     if not words:
         return 0.0
     return len(set(words)) / len(words)
+
+
+def calculate_cross_generation_diversity(texts: list[str]) -> float:
+    """
+    Calculate diversity across multiple generations.
+
+    Measures how different the generations are from each other by looking at
+    unique n-grams across all texts vs total n-grams.
+
+    Args:
+        texts: List of generated texts to compare
+
+    Returns:
+        Cross-generation diversity score (0.0 to 1.0)
+        - 0.0: All texts are identical
+        - 1.0: All texts are completely different
+    """
+    if not texts:
+        return 0.0
+
+    # Use bigrams for better diversity measurement
+    all_bigrams = []
+    for text in texts:
+        words = text.split()
+        if len(words) < 2:
+            continue
+        bigrams = [(words[i], words[i + 1]) for i in range(len(words) - 1)]
+        all_bigrams.extend(bigrams)
+
+    if not all_bigrams:
+        # Fall back to word-level if no bigrams available
+        all_words = []
+        for text in texts:
+            all_words.extend(text.split())
+        if not all_words:
+            return 0.0
+        return len(set(all_words)) / len(all_words)
+
+    return len(set(all_bigrams)) / len(all_bigrams)
 
 
 def evaluate_fluency(text: str, llm_config: LLMConfig) -> float:
@@ -327,8 +366,10 @@ def run_evaluation(generated_texts: dict[float, list[str]]) -> list[GenerationRe
     for temp, texts in generated_texts.items():
         print(f"  Evaluating T={temp} texts...")
 
+        # Calculate cross-generation diversity for this temperature
+        cross_gen_diversity = calculate_cross_generation_diversity(texts)
+
         for i, generated_part in enumerate(texts):
-            diversity = calculate_diversity(generated_part)
             fluency_score = evaluate_fluency(generated_part, llm_config)
 
             results.append(
@@ -336,7 +377,7 @@ def run_evaluation(generated_texts: dict[float, list[str]]) -> list[GenerationRe
                     temperature=temp,
                     prompt=prompt,
                     generated_text=generated_part,
-                    diversity=diversity,
+                    diversity=cross_gen_diversity,  # Use cross-generation diversity
                     generation_time=0.0,  # Not measured for pre-generated texts
                     fluency_score=fluency_score,
                 )
@@ -378,8 +419,9 @@ def run_evaluation_demo(generated_texts: dict[float, list[str]]) -> None:
             print(f"{temp_label}: '{example.generated_text[:50]}...' (Fluency: {example.fluency_score:.1f})")
 
         print("\nKey Findings:")
-        print("- Diversity generally increases with temperature")
-        print("- Generation speed is relatively consistent across temperatures")
+        print("- Cross-generation diversity measures how different the 3 outputs are from each other")
+        print("- T=0 (greedy) should have diversity ≈0 since all outputs are identical")
+        print("- Higher temperatures should show increased diversity across generations")
         print("- Fluency scores help identify the optimal temperature range")
 
         # Find optimal temperature based on fluency
