@@ -26,10 +26,3 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
-      - id: ruff
-        name: ruff-no-inline-imports
-        entry: ruff
-        language: system
-        args: ["--select=E,F","--per-file-ignores=","--extend-select=E402","--ignore="]
-        types: [python]
-
