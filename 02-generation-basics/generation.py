@@ -47,6 +47,11 @@ try:
 except ImportError:
     completion = None
 
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
+
 from nanogpt import GPT2, GPT2Tokenizer  # type: ignore[attr-defined]
 
 
@@ -62,12 +67,18 @@ class LLMConfig:
 def load_llm_config() -> LLMConfig:
     """Load LLM configuration from environment variables.
 
+    Attempts to load from .env file if python-dotenv is available.
+
     Returns:
         LLMConfig object with API configuration
 
     Raises:
         ValueError: If required environment variables are missing
     """
+    # Load from .env file if available
+    if load_dotenv is not None:
+        load_dotenv()
+
     api_key = os.getenv("LLM_API_KEY")
     model = os.getenv("LLM_MODEL")
     base_url = os.getenv("LLM_BASE_URL")
@@ -197,6 +208,13 @@ def demonstrate_temperature_sampling() -> dict[float, list[str]]:
 # 3. **Fluency**: Quality assessment using an external API (optional)
 #
 # We'll run experiments across multiple prompts and temperature values to understand the trade-offs and identify optimal settings for different use cases.
+#
+# **Configuration**: For fluency evaluation, you can set environment variables directly or create a `.env` file:
+# ```
+# LLM_API_KEY=your_api_key_here
+# LLM_MODEL=gpt-3.5-turbo
+# LLM_BASE_URL=https://api.openai.com/v1  # optional
+# ```
 
 
 # %%
