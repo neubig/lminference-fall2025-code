@@ -45,7 +45,7 @@ from dataclasses import dataclass
 
 import torch
 import torch.nn.functional as F
-from nanogpt import GPT2, GPT2Config, GPT2Tokenizer
+from nanogpt import GPT2, GPT2Tokenizer
 from generation import temperature_sample
 
 
@@ -71,8 +71,8 @@ class GenerationResult:
 # $$\log P(w_1, w_2, \ldots, w_n) = \sum_{i=1}^{n} \log P(w_i | w_1, \ldots, w_{i-1})$$
 #
 # We'll compare:
-# - **Small Model**: 6 layers, 6 heads, 384 embedding dimensions
-# - **Medium Model**: 12 layers, 12 heads, 768 embedding dimensions
+# - **Small Model**: GPT-2 base (117M parameters, 12 layers, 12 heads, 768 dimensions)
+# - **Medium Model**: GPT-2 medium (345M parameters, 24 layers, 16 heads, 1024 dimensions)
 
 
 # %%
@@ -91,15 +91,15 @@ def load_models(device: str = "auto") -> tuple[GPT2, GPT2, GPT2Tokenizer]:
     # Create tokenizer
     tokenizer = GPT2Tokenizer()
 
-    # Load small model
-    small_config = GPT2Config(n_layer=6, n_head=6, n_embd=384)
-    small_model = GPT2(small_config)
+    # Load small model (GPT-2 base model)
+    print("Loading GPT-2 small model...")
+    small_model = GPT2.from_pretrained("gpt2")
     small_model.to(device)
     small_model.eval()
 
-    # Load medium model
-    medium_config = GPT2Config(n_layer=12, n_head=12, n_embd=768)
-    medium_model = GPT2(medium_config)
+    # Load medium model (GPT-2 medium model)
+    print("Loading GPT-2 medium model...")
+    medium_model = GPT2.from_pretrained("gpt2-medium")
     medium_model.to(device)
     medium_model.eval()
 
@@ -122,8 +122,12 @@ def calculate_log_probability(
     Returns:
         Tuple of (total_log_prob, per_token_log_prob, token_count)
     """
-    # Tokenize
-    inputs = torch.tensor([tokenizer.encode(text)]).to(device)
+    # Tokenize (handle special tokens like <|endoftext|>)
+    import tiktoken
+
+    enc = tiktoken.get_encoding("gpt2")
+    tokens = enc.encode(text, allowed_special={"<|endoftext|>"})
+    inputs = torch.tensor([tokens]).to(device)
 
     if len(inputs[0]) <= 1:
         return float("-inf"), float("-inf"), 0
@@ -185,8 +189,8 @@ def demonstrate_log_probability_calculation() -> None:
 
 
 # %%
-# Uncomment the line below to run the log probability demonstration
-# demonstrate_log_probability_calculation()
+# Run the log probability demonstration
+demonstrate_log_probability_calculation()
 
 
 # %% [markdown]
@@ -238,7 +242,11 @@ def run_meta_generation_experiment(
 
         # Generate text using small model
         device = next(small_model.parameters()).device
-        input_ids = torch.tensor([tokenizer.encode(prompt)]).to(device)
+        import tiktoken
+
+        enc = tiktoken.get_encoding("gpt2")
+        input_ids = torch.tensor([enc.encode(prompt, allowed_special={"<|endoftext|>"})]).to(device)
+        eos_token_id = enc.encode("<|endoftext|>", allowed_special={"<|endoftext|>"})[0]
 
         small_model.eval()
         with torch.no_grad():
@@ -247,6 +255,10 @@ def run_meta_generation_experiment(
                 next_token_logits = logits[0, -1, :]
                 next_token = temperature_sample(next_token_logits, temperature)
                 input_ids = torch.cat([input_ids, next_token.unsqueeze(0).unsqueeze(0)], dim=1)
+
+                # Stop if we generate end-of-text token
+                if next_token.item() == eos_token_id:
+                    break
 
         generated_text = tokenizer.decode(input_ids[0].tolist())
 
@@ -314,8 +326,8 @@ def demonstrate_meta_generation() -> list[GenerationResult]:
 
 
 # %%
-# Uncomment the line below to run the meta-generation demonstration
-# demo_results = demonstrate_meta_generation()
+# Run the meta-generation demonstration
+demo_results = demonstrate_meta_generation()
 
 
 # %% [markdown]
@@ -507,5 +519,5 @@ def run_complete_meta_generation_pipeline(
 
 
 # %%
-# Uncomment the line below to run the complete pipeline
-# full_results = run_complete_meta_generation_pipeline()
+# Run the complete pipeline
+full_results = run_complete_meta_generation_pipeline()
