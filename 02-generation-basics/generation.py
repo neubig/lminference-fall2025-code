@@ -37,7 +37,6 @@
 from __future__ import annotations
 
 import os
-import time
 from dataclasses import dataclass
 
 import torch
@@ -116,10 +115,14 @@ def generate_with_temperature(
     return tokenizer.decode(input_ids[0].tolist())
 
 
-def main() -> None:
-    """Run the temperature demonstration and evaluation."""
-    # %%
-    # Demonstrate temperature effects with real GPT-2 model
+# %%
+# Demonstrate temperature effects with real GPT-2 model
+def demonstrate_temperature_sampling() -> dict[float, list[str]]:
+    """Run the temperature demonstration with multiple generations per temperature.
+
+    Returns:
+        dict: Generated texts organized by temperature, for reuse in evaluation
+    """
     print("Loading GPT-2 model...")
     model = GPT2.from_pretrained("gpt2")
     model.to("cpu")
@@ -128,81 +131,40 @@ def main() -> None:
 
     prompt = "The future of artificial intelligence is"
     temperatures = [0.0, 0.5, 1.0, 1.5]
+    generated_texts = {}
 
     print(f"Prompt: '{prompt}'\n")
 
     for temp in temperatures:
-        generated = generate_with_temperature(model, tokenizer, prompt, temp, max_length=25)
-        generated_part = generated[len(prompt) :].strip()
         temp_label = "Greedy" if temp == 0.0 else f"T={temp}"
-        print(f"{temp_label:8}: {generated_part}")
+        print(f"{temp_label}:")
 
-    # Run evaluation and show results
-    try:
-        results = run_evaluation()
+        generated_texts[temp] = []
+        # Generate three examples for each temperature to show diversity
+        for i in range(3):
+            generated = generate_with_temperature(model, tokenizer, prompt, temp, max_length=25)
+            generated_part = generated[len(prompt) :].strip()
+            generated_texts[temp].append(generated_part)
+            print(f"  {i+1}: {generated_part}")
+        print()  # Add blank line between temperature groups
 
-        # Group by temperature and calculate averages
-        temp_groups = {}
-        for result in results:
-            if result.temperature not in temp_groups:
-                temp_groups[result.temperature] = []
-            temp_groups[result.temperature].append(result)
-
-        print("\nAverage metrics by temperature:")
-        for temp in sorted(temp_groups.keys()):
-            group = temp_groups[temp]
-            avg_diversity = sum(r.diversity for r in group) / len(group)
-            avg_time = sum(r.generation_time for r in group) / len(group)
-            avg_fluency = sum(r.fluency_score for r in group) / len(group)
-
-            temp_label = "Greedy" if temp == 0.0 else f"T={temp}"
-            print(f"{temp_label:8}: Diversity={avg_diversity:.3f}, Time={avg_time:.3f}s, Fluency={avg_fluency:.1f}/10")
-
-        print("\nSample outputs:")
-        for temp in sorted(temp_groups.keys()):
-            example = temp_groups[temp][0]
-            temp_label = "Greedy" if temp == 0.0 else f"T={temp}"
-            print(f"{temp_label}: '{example.generated_text[:50]}...' (Fluency: {example.fluency_score:.1f})")
-
-        print("\nKey Findings:")
-        print("- Diversity generally increases with temperature")
-        print("- Generation speed is relatively consistent across temperatures")
-        print("- Fluency scores help identify the optimal temperature range")
-
-        # Find optimal temperature based on fluency
-        best_temp = max(
-            temp_groups.keys(),
-            key=lambda t: sum(r.fluency_score for r in temp_groups[t]) / len(temp_groups[t]),
-        )
-        best_fluency = sum(r.fluency_score for r in temp_groups[best_temp]) / len(temp_groups[best_temp])
-        print(f"- Highest average fluency: T={best_temp} ({best_fluency:.1f}/10)")
-
-    except ValueError as e:
-        print(f"Configuration Error: {e}")
-        print("\nTo run fluency evaluation, set these environment variables:")
-        print("- LLM_API_KEY: Your API key")
-        print("- LLM_MODEL: Model name (required)")
-        print("- LLM_BASE_URL: Base URL (optional, for custom endpoints)")
-        print("\nExample:")
-        print("export LLM_API_KEY='your-api-key-here'")
-        print("export LLM_MODEL='gpt-3.5-turbo'")
-    except Exception as e:
-        print(f"Evaluation Error: {e}")
-        print("Check your API configuration and try again.")
+    return generated_texts
 
 
-if __name__ == "__main__":
-    main()
+# %%
+# Uncomment the line below to run the temperature sampling demonstration
+# generated_texts = demonstrate_temperature_sampling()
+
 
 # %% [markdown]
 # ## 2. Evaluation and Analysis
 #
-# To systematically compare temperature settings, we need quantitative metrics:
+# Now that we've seen basic temperature sampling in action, let's systematically evaluate different temperature settings using quantitative metrics:
 # 1. **Diversity**: Ratio of unique words to total words (higher = more diverse)
 # 2. **Generation Speed**: Time taken to generate text
 # 3. **Fluency**: Quality assessment using an external API (optional)
 #
-# We'll run experiments across multiple prompts and temperature values to understand the trade-offs.
+# We'll run experiments across multiple prompts and temperature values to understand the trade-offs and identify optimal settings for different use cases.
 
 
 # %%
@@ -303,9 +265,12 @@ def evaluate_fluency(text: str) -> float:
         raise Exception(f"Fluency evaluation failed: {str(e)}") from e
 
 
-def run_evaluation() -> list[GenerationResult]:
+def run_evaluation(generated_texts: dict[float, list[str]]) -> list[GenerationResult]:
     """
-    Run systematic evaluation across temperatures and prompts.
+    Run systematic evaluation on pre-generated texts.
+
+    Args:
+        generated_texts: Dict of pre-generated texts organized by temperature.
 
     Returns:
         List of GenerationResult objects
@@ -328,32 +293,16 @@ def run_evaluation() -> list[GenerationResult]:
     if base_url:
         print(f"Base URL: {base_url}")
 
-    # Load GPT-2 model and tokenizer
-    model = GPT2.from_pretrained("gpt2")
-    tokenizer = GPT2Tokenizer()
-
-    # Test prompts representing different use cases
-    prompts = [
-        "The future of artificial intelligence",
-        "Once upon a time in a magical forest",
-        "Machine learning algorithms work by",
-        "The most important factor in climate change is",
-    ]
-
-    temperatures = [0.0, 0.5, 1.0, 1.5]
     results = []
 
-    print("Running evaluation across prompts and temperatures...")
+    # Evaluate pre-generated texts from demonstration
+    print("Evaluating pre-generated texts from demonstration...")
+    prompt = "The future of artificial intelligence is"  # Match the demo prompt
 
-    for prompt in prompts:
-        for temp in temperatures:
-            print(f"  Evaluating T={temp} with prompt: '{prompt[:30]}...'")
+    for temp, texts in generated_texts.items():
+        print(f"  Evaluating T={temp} texts...")
 
-            start_time = time.time()
-            generated = generate_with_temperature(model, tokenizer, prompt, temp, max_length=20)
-            generation_time = time.time() - start_time
-
-            generated_part = generated[len(prompt) :].strip()
+        for i, generated_part in enumerate(texts):
             diversity = calculate_diversity(generated_part)
             fluency_score = evaluate_fluency(generated_part)
 
@@ -363,7 +312,7 @@ def run_evaluation() -> list[GenerationResult]:
                     prompt=prompt,
                     generated_text=generated_part,
                     diversity=diversity,
-                    generation_time=generation_time,
+                    generation_time=0.0,  # Not measured for pre-generated texts
                     fluency_score=fluency_score,
                 )
             )
@@ -371,24 +320,66 @@ def run_evaluation() -> list[GenerationResult]:
     return results
 
 
-# %% [markdown]
-# ## Summary and Best Practices
-#
-# **Temperature Selection Guide:**
-# - **T = 0.0 (Greedy)**: Deterministic, focused, potentially repetitive
-# - **T = 0.5**: Conservative, coherent, good for factual content
-# - **T = 1.0**: Balanced creativity and coherence, good default
-# - **T = 1.5**: Creative, diverse, good for creative writing
-#
-# **Key Trade-offs:**
-# - Lower temperature → Higher coherence, lower diversity
-# - Higher temperature → Lower coherence, higher diversity
-# - The optimal temperature depends on your specific application
-#
-# **Practical Recommendations:**
-# 1. Start with T = 1.0 as a baseline for most applications
-# 2. Use T = 0.0 (greedy) when you need deterministic, reproducible outputs
-# 3. Lower temperature (0.3-0.7) for factual content, documentation, or technical writing
-# 4. Higher temperature (1.0-1.5) for creative writing, brainstorming, or content generation
-# 5. Very high temperatures (>2.0) often produce incoherent text and should be used sparingly
-# 6. Always evaluate on your specific use case - optimal temperature varies by domain and application
+def run_evaluation_demo(generated_texts: dict[float, list[str]]) -> None:
+    """Run evaluation demonstration and show results.
+
+    Args:
+        generated_texts: Dict of pre-generated texts to evaluate
+    """
+    try:
+        results = run_evaluation(generated_texts)
+
+        # Group by temperature and calculate averages
+        temp_groups = {}
+        for result in results:
+            if result.temperature not in temp_groups:
+                temp_groups[result.temperature] = []
+            temp_groups[result.temperature].append(result)
+
+        print("Average metrics by temperature:")
+        for temp in sorted(temp_groups.keys()):
+            group = temp_groups[temp]
+            avg_diversity = sum(r.diversity for r in group) / len(group)
+            avg_time = sum(r.generation_time for r in group) / len(group)
+            avg_fluency = sum(r.fluency_score for r in group) / len(group)
+
+            temp_label = "Greedy" if temp == 0.0 else f"T={temp}"
+            print(f"{temp_label:8}: Diversity={avg_diversity:.3f}, Time={avg_time:.3f}s, Fluency={avg_fluency:.1f}/10")
+
+        print("\nSample outputs:")
+        for temp in sorted(temp_groups.keys()):
+            example = temp_groups[temp][0]
+            temp_label = "Greedy" if temp == 0.0 else f"T={temp}"
+            print(f"{temp_label}: '{example.generated_text[:50]}...' (Fluency: {example.fluency_score:.1f})")
+
+        print("\nKey Findings:")
+        print("- Diversity generally increases with temperature")
+        print("- Generation speed is relatively consistent across temperatures")
+        print("- Fluency scores help identify the optimal temperature range")
+
+        # Find optimal temperature based on fluency
+        best_temp = max(
+            temp_groups.keys(),
+            key=lambda t: sum(r.fluency_score for r in temp_groups[t]) / len(temp_groups[t]),
+        )
+        best_fluency = sum(r.fluency_score for r in temp_groups[best_temp]) / len(temp_groups[best_temp])
+        print(f"- Highest average fluency: T={best_temp} ({best_fluency:.1f}/10)")
+
+    except ValueError as e:
+        print(f"Configuration Error: {e}")
+        print("\nTo run fluency evaluation, set these environment variables:")
+        print("- LLM_API_KEY: Your API key")
+        print("- LLM_MODEL: Model name (required)")
+        print("- LLM_BASE_URL: Base URL (optional, for custom endpoints)")
+        print("\nExample:")
+        print("export LLM_API_KEY='your-api-key-here'")
+        print("export LLM_MODEL='gpt-3.5-turbo'")
+    except Exception as e:
+        print(f"Evaluation Error: {e}")
+        print("Check your API configuration and try again.")
+
+
+# %%
+# Uncomment the line below to run the evaluation demonstration
+# Note: This requires generated_texts from Section 1
+# run_evaluation_demo(generated_texts)
