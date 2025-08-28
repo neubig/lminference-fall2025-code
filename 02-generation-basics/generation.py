@@ -49,6 +49,38 @@ except ImportError:
 
 from nanogpt import GPT2, GPT2Tokenizer  # type: ignore[attr-defined]
 
+
+@dataclass
+class LLMConfig:
+    """Configuration for LLM API calls."""
+
+    api_key: str
+    model: str
+    base_url: str | None = None
+
+
+def load_llm_config() -> LLMConfig:
+    """Load LLM configuration from environment variables.
+
+    Returns:
+        LLMConfig object with API configuration
+
+    Raises:
+        ValueError: If required environment variables are missing
+    """
+    api_key = os.getenv("LLM_API_KEY")
+    model = os.getenv("LLM_MODEL")
+    base_url = os.getenv("LLM_BASE_URL")
+
+    if not api_key:
+        raise ValueError("LLM_API_KEY environment variable is required")
+
+    if not model:
+        raise ValueError("LLM_MODEL environment variable is required")
+
+    return LLMConfig(api_key=api_key, model=model, base_url=base_url)
+
+
 # %% [markdown]
 # ## 1. Text Generation with Temperature Sampling
 #
@@ -196,30 +228,21 @@ def calculate_diversity(text: str) -> float:
     return len(set(words)) / len(words)
 
 
-def evaluate_fluency(text: str) -> float:
+def evaluate_fluency(text: str, llm_config: LLMConfig) -> float:
     """
     Evaluate text fluency using an external API.
 
     Args:
         text: Text to evaluate
+        llm_config: LLM configuration with API credentials
 
     Returns:
         Fluency score (0-10)
 
     Raises:
-        ValueError: If required environment variables are not set
+        ValueError: If litellm package is not available
         Exception: If API call fails
     """
-    # Get configuration from environment variables
-    api_key = os.getenv("LLM_API_KEY")
-    model = os.getenv("LLM_MODEL")
-    base_url = os.getenv("LLM_BASE_URL")
-
-    if not api_key:
-        raise ValueError("LLM_API_KEY environment variable is required for fluency evaluation")
-
-    if not model:
-        raise ValueError("LLM_MODEL environment variable is required for fluency evaluation")
 
     if completion is None:
         raise ValueError("litellm package is required for fluency evaluation")
@@ -227,20 +250,20 @@ def evaluate_fluency(text: str) -> float:
     try:
         # Prepare completion arguments
         completion_args = {
-            "model": model,
+            "model": llm_config.model,
             "messages": [
                 {
                     "role": "user",
                     "content": f"Rate the fluency and coherence of this text on a scale of 0-10 (10 = perfect). Only respond with a number: '{text}'",
                 }
             ],
-            "api_key": api_key,
+            "api_key": llm_config.api_key,
             "max_tokens": 5,
         }
 
         # Add base URL if provided
-        if base_url:
-            completion_args["base_url"] = base_url
+        if llm_config.base_url:
+            completion_args["base_url"] = llm_config.base_url
 
         response = completion(**completion_args)
         score_text = response.choices[0].message.content.strip()  # type: ignore
@@ -278,20 +301,12 @@ def run_evaluation(generated_texts: dict[float, list[str]]) -> list[GenerationRe
     Raises:
         ValueError: If LLM configuration is missing
     """
-    # Check for required LLM configuration
-    api_key = os.getenv("LLM_API_KEY")
-    model_name = os.getenv("LLM_MODEL")
-    base_url = os.getenv("LLM_BASE_URL")
+    # Load LLM configuration once
+    llm_config = load_llm_config()
 
-    if not api_key:
-        raise ValueError("LLM_API_KEY environment variable is required for evaluation")
-
-    if not model_name:
-        raise ValueError("LLM_MODEL environment variable is required for evaluation")
-
-    print(f"Using LLM: {model_name}")
-    if base_url:
-        print(f"Base URL: {base_url}")
+    print(f"Using LLM: {llm_config.model}")
+    if llm_config.base_url:
+        print(f"Base URL: {llm_config.base_url}")
 
     results = []
 
@@ -304,7 +319,7 @@ def run_evaluation(generated_texts: dict[float, list[str]]) -> list[GenerationRe
 
         for i, generated_part in enumerate(texts):
             diversity = calculate_diversity(generated_part)
-            fluency_score = evaluate_fluency(generated_part)
+            fluency_score = evaluate_fluency(generated_part, llm_config)
 
             results.append(
                 GenerationResult(
