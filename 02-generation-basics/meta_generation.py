@@ -43,6 +43,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import tiktoken
 import torch
 import torch.nn.functional as F
 from nanogpt import GPT2, GPT2Tokenizer
@@ -123,8 +124,6 @@ def calculate_log_probability(
         Tuple of (total_log_prob, per_token_log_prob, token_count)
     """
     # Tokenize (handle special tokens like <|endoftext|>)
-    import tiktoken
-
     enc = tiktoken.get_encoding("gpt2")
     tokens = enc.encode(text, allowed_special={"<|endoftext|>"})
     inputs = torch.tensor([tokens]).to(device)
@@ -242,8 +241,6 @@ def run_meta_generation_experiment(
 
         # Generate text using small model
         device = next(small_model.parameters()).device
-        import tiktoken
-
         enc = tiktoken.get_encoding("gpt2")
         input_ids = torch.tensor([enc.encode(prompt, allowed_special={"<|endoftext|>"})]).to(device)
         eos_token_id = enc.encode("<|endoftext|>", allowed_special={"<|endoftext|>"})[0]
