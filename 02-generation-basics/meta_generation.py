@@ -371,5 +371,4 @@ def show_medium_preferred_examples(results: list[GenerationResult]) -> None:
 
 # %%
 # Show examples where medium model assigns higher probability
-if "demo_results" in locals():
-    show_medium_preferred_examples(demo_results)
+show_medium_preferred_examples(demo_results)
