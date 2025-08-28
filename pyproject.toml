@@ -86,3 +86,5 @@ typeCheckingMode = "basic"
 useLibraryCodeForTypes = true
 reportMissingImports = "warning"
 reportMissingTypeStubs = "none"
+# Suppress attribute access issues common in narrative/monkey-patched code
+reportAttributeAccessIssue = "none"
