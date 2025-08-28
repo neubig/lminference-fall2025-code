@@ -5,6 +5,7 @@ Code examples and tutorials for the **CMU Language Model Inference** course (Fal
 ## Structure
 
 Each class directory contains:
+
 - **Python scripts** (`.py`) - Canonical implementation
 - **Jupyter notebooks** (`.ipynb`) - Interactive versions with Colab links
 

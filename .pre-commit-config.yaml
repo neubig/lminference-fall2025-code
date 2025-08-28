@@ -18,6 +18,12 @@ repos:
     rev: 0.28.0
     hooks:
       - id: check-github-workflows
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.45.0
+    hooks:
+      - id: markdownlint
+        args: ["--config", "pyproject.toml", "--configPointer", "/tool/markdownlint", "--fix"]
+        exclude: ^(.venv/.*|.*\.openhands/.*)
   - repo: local
     hooks:
       - id: pyright
