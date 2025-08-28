@@ -421,16 +421,18 @@ def analyze_model_agreement(results: list[GenerationResult]) -> None:
     correlation = numerator / (denom_small * denom_medium) if denom_small * denom_medium > 0 else 0
     print(f"\nCorrelation between model scores: {correlation:.3f}")
 
-    # Show examples where models disagree most
-    disagreement_scores = [(abs(r.small_per_token_log_prob - r.medium_per_token_log_prob), r) for r in results]
-    disagreement_scores.sort(reverse=True)
+    # Sort by difference (medium - small) to show model preferences
+    results_by_difference = sorted(
+        results, key=lambda r: r.medium_per_token_log_prob - r.small_per_token_log_prob, reverse=True
+    )
 
-    print(f"\nTop 3 examples where models disagree most:")
-    for i, (disagreement, result) in enumerate(disagreement_scores[:3]):
-        preferred_model = "Small" if result.small_per_token_log_prob > result.medium_per_token_log_prob else "Medium"
+    print(f"\nTop 5 examples sorted by model preference difference:")
+    for i, result in enumerate(results_by_difference[:5]):
+        difference = result.medium_per_token_log_prob - result.small_per_token_log_prob
         print(f"\n{i+1}. Text: '{result.generated_text[:60]}...'")
-        print(f"   Small: {result.small_per_token_log_prob:.3f}, Medium: {result.medium_per_token_log_prob:.3f}")
-        print(f"   Disagreement: {disagreement:.3f} (prefers: {preferred_model})")
+        print(
+            f"   Small: {result.small_per_token_log_prob:.3f}, Medium: {result.medium_per_token_log_prob:.3f}, Diff: {difference:.3f}"
+        )
 
 
 def run_comprehensive_analysis(results: list[GenerationResult]) -> None:
