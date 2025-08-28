@@ -32,9 +32,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-from typing import Dict, List
-import pandas as pd
-import os
 
 # Set style for better-looking plots
 plt.style.use("seaborn-v0_8")
@@ -113,7 +110,7 @@ for model_name, config in LLAMA31_CONFIGS.items():
 
 
 # %%
-def calculate_flops_per_token(config: Dict, sequence_length: int) -> Dict[str, float]:
+def calculate_flops_per_token(config: dict[str, int | float], sequence_length: int) -> dict[str, float]:
     """
     Calculate FLOPs per forward pass for a given model configuration and sequence length.
 
@@ -200,7 +197,7 @@ print(f"Example: Llama-3.1-8B with 2K context requires {test_flops['total'] / 1e
 
 
 # %%
-def create_flop_scaling_figure():
+def create_flop_scaling_figure() -> None:
     """Create figure showing FLOP scaling with context length."""
     context_lengths = [1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072]
 
@@ -311,7 +308,7 @@ create_flop_scaling_figure()
 
 
 # %%
-def create_efficiency_comparison():
+def create_efficiency_comparison() -> None:
     """Create figure comparing computational efficiency metrics."""
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 
@@ -398,7 +395,7 @@ create_efficiency_comparison()
 
 
 # %%
-def create_architecture_comparison():
+def create_architecture_comparison() -> None:
     """Create figure comparing architectural components."""
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
 
