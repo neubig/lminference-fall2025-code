@@ -32,9 +32,9 @@
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import numpy as np
-from typing import List, Tuple
 import logging
 import warnings
+import matplotlib.pyplot as plt
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -56,7 +56,7 @@ class QwenCompletionGenerator:
     A class for generating text completions using Qwen models with probability analysis.
     """
 
-    def __init__(self, model_name: str = "Qwen/Qwen3-1.7B-Base"):
+    def __init__(self, model_name: str = "Qwen/Qwen3-1.7B-Base") -> None:
         """Initialize the Qwen model and tokenizer."""
         # Determine the best available device
         if torch.cuda.is_available():
@@ -101,7 +101,7 @@ generator = QwenCompletionGenerator()
 
 
 # %%
-def generate_completion(self, prompt: str, max_length: int = 50) -> Tuple[str, float]:
+def generate_completion(self: "QwenCompletionGenerator", prompt: str, max_length: int = 50) -> tuple[str, float]:
     """
     Generate a completion and compute its total log-probability.
     Stops at first period or newline for natural sentence boundaries.
@@ -186,7 +186,7 @@ print(f"Test completion: '{test_completion}' (log_prob: {test_prob:.4f})")
 
 
 # %%
-def generate_multiple_completions(self, prompt: str, num_completions: int = 100) -> List[Tuple[str, float]]:
+def generate_multiple_completions(self: "QwenCompletionGenerator", prompt: str, num_completions: int = 100) -> list[tuple[str, float]]:
     """Generate multiple completions from the given prompt."""
     completions = []
 
@@ -203,8 +203,8 @@ def generate_multiple_completions(self, prompt: str, num_completions: int = 100)
 
 
 def select_completions_by_probability(
-    self, completions: List[Tuple[str, float]]
-) -> Tuple[List[Tuple[str, float]], List[Tuple[str, float]], List[Tuple[str, float]]]:
+    self: "QwenCompletionGenerator", completions: list[tuple[str, float]]
+) -> tuple[list[tuple[str, float]], list[tuple[str, float]], list[tuple[str, float]]]:
     """
     Select highest, lowest, and central probability completions.
     """
@@ -356,8 +356,6 @@ print(f"   Torch version: {torch.__version__}")
 # Let's create visualizations to better understand the probability distributions.
 
 # %%
-import matplotlib.pyplot as plt
-
 # Create probability distribution plots
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
 

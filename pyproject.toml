@@ -57,19 +57,23 @@ extend-exclude = [
 ]
 
 [tool.ruff.lint]
-# Keep linting pragmatic for educational code
-select = ["E", "F"]
+# Enforce style, unused/inline imports, annotations, and modern typing
+select = ["E", "F", "UP", "ANN"]
 ignore = [
-  # Allow unused imports in notebooks/scripts where top-level imports are illustrative
-  "F401",
-  # Allow long educational/comment lines and intermediate plotting variables
+  # Keep pragmatic line length and allow a few narrative conveniences
   "E501",
   "F841",
-  # Allow imports not at top of file in narrative notebooks/scripts
-  "E402",
   # Allow f-strings without placeholders used for formatting consistency
   "F541",
+  # Do not require annotating self/cls parameters
+  "ANN101",
+  "ANN102",
 ]
+
+[tool.ruff.lint.flake8-annotations]
+# Require return annotation for __init__ and ignore self/cls params
+mypy-init-return = true
+suppress-dummy-args = true
 
 [tool.pyright]
 pythonVersion = "3.10"
