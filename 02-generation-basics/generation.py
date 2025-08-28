@@ -44,10 +44,7 @@ import torch.nn.functional as F
 
 from litellm import completion
 
-try:
-    from dotenv import load_dotenv
-except ImportError:
-    load_dotenv = None
+from dotenv import load_dotenv
 
 from nanogpt import GPT2, GPT2Tokenizer  # type: ignore[attr-defined]
 
@@ -64,7 +61,7 @@ class LLMConfig:
 def load_llm_config() -> LLMConfig:
     """Load LLM configuration from environment variables.
 
-    Attempts to load from .env file if python-dotenv is available.
+    Automatically loads from .env file if present.
 
     Returns:
         LLMConfig object with API configuration
@@ -72,9 +69,8 @@ def load_llm_config() -> LLMConfig:
     Raises:
         ValueError: If required environment variables are missing
     """
-    # Load from .env file if available
-    if load_dotenv is not None:
-        load_dotenv()
+    # Load from .env file
+    load_dotenv()
 
     api_key = os.getenv("LLM_API_KEY")
     model = os.getenv("LLM_MODEL")

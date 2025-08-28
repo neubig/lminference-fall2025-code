@@ -22,6 +22,7 @@ dependencies = [
   "jupytext>=1.16",
   "tiktoken>=0.11.0",
   "litellm>=1.76.0",
+  "python-dotenv>=1.1.1",
 ]
 
 [project.optional-dependencies]
