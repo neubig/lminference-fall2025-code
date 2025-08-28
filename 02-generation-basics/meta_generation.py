@@ -189,8 +189,7 @@ def demonstrate_log_probability_calculation() -> None:
 
 # %%
 # Run the log probability demonstration
-# Uncomment the line below to run the demonstration
-# demonstrate_log_probability_calculation()
+demonstrate_log_probability_calculation()
 
 
 # %% [markdown]
@@ -325,8 +324,7 @@ def demonstrate_meta_generation() -> list[GenerationResult]:
 
 # %%
 # Run the meta-generation demonstration
-# Uncomment the line below to run the demonstration
-# demo_results = demonstrate_meta_generation()
+demo_results = demonstrate_meta_generation()
 
 
 # %% [markdown]
@@ -463,28 +461,6 @@ def run_comprehensive_analysis(results: list[GenerationResult]) -> None:
 
 
 # %%
-# Uncomment the lines below to run comprehensive analysis on demo results
-# if 'demo_results' in locals():
-#     run_comprehensive_analysis(demo_results)
-
-
-# %% [markdown]
-# ## Conclusion
-#
-# This notebook has demonstrated the key concepts of meta-generation:
-#
-# 1. **Cross-Model Evaluation**: Using different models to evaluate the same generated text
-# 2. **Log Probability Analysis**: Understanding how models assign probabilities to text sequences
-# 3. **Model Agreement Patterns**: Discovering where models agree and disagree in their evaluations
-#
-# ### Key Takeaways:
-# - Larger models often assign different probabilities than smaller models
-# - Model agreement can reveal insights about text quality and naturalness
-# - Meta-generation is useful for model evaluation, quality assessment, and understanding model behavior
-#
-# ### Next Steps:
-# Try experimenting with:
-# - Different prompts and generation parameters
-# - Comparing more model sizes or architectures
-# - Analyzing specific types of text (e.g., creative writing vs. factual content)
-# - Using the results to improve generation quality
+# Run comprehensive analysis on demo results
+if "demo_results" in locals():
+    run_comprehensive_analysis(demo_results)
