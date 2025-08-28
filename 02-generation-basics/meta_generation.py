@@ -362,7 +362,8 @@ def show_medium_preferred_examples(results: list[GenerationResult]) -> None:
 
     for i, result in enumerate(medium_preferred[:10]):
         difference = result.medium_per_token_log_prob - result.small_per_token_log_prob
-        print(f"{i+1}. Text: '{result.generated_text[:80]}...'")
+        print(f"{i+1}. Prompt: '{result.prompt}'")
+        print(f"   Generated: '{result.generated_text}'")
         print(
             f"   Small: {result.small_per_token_log_prob:.3f}, Medium: {result.medium_per_token_log_prob:.3f}, Diff: +{difference:.3f}\n"
         )
