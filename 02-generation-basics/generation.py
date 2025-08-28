@@ -42,10 +42,7 @@ from dataclasses import dataclass
 import torch
 import torch.nn.functional as F
 
-try:
-    from litellm import completion  # type: ignore
-except ImportError:
-    completion = None
+from litellm import completion
 
 try:
     from dotenv import load_dotenv
@@ -258,12 +255,8 @@ def evaluate_fluency(text: str, llm_config: LLMConfig) -> float:
         Fluency score (0-10)
 
     Raises:
-        ValueError: If litellm package is not available
         Exception: If API call fails
     """
-
-    if completion is None:
-        raise ValueError("litellm package is required for fluency evaluation")
 
     try:
         # Prepare completion arguments
@@ -284,7 +277,10 @@ def evaluate_fluency(text: str, llm_config: LLMConfig) -> float:
             completion_args["base_url"] = llm_config.base_url
 
         response = completion(**completion_args)
-        score_text = response.choices[0].message.content.strip()  # type: ignore
+        content = response.choices[0].message.content
+        if content is None:
+            raise ValueError("API returned empty response")
+        score_text = content.strip()
 
         # Extract numeric score
         try:
