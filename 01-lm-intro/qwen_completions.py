@@ -77,7 +77,8 @@ class QwenCompletionGenerator:
             model_name,
             torch_dtype=torch.float32,
             device_map=None,  # Manual device placement for better control
-        ).to(self.device)
+        )
+        self.model = self.model.to(self.device)  # type: ignore[arg-type]
 
         # Set pad token if not exists
         if self.tokenizer.pad_token is None:
@@ -146,17 +147,18 @@ def generate_completion(self: "QwenCompletionGenerator", prompt: str, max_length
         displayed_text = ""
 
         # Calculate probabilities and find stopping point
-        for i, (logits, tok_id) in enumerate(zip(output.scores, gen_ids)):
-            # Calculate log probabilities
-            log_probs = torch.log_softmax(logits[0], dim=-1)
-            total_log_prob += log_probs[tok_id.item()].item()
-            tokens_used = i + 1
+        if output.scores is not None:
+            for i, (logits, tok_id) in enumerate(zip(output.scores, gen_ids)):
+                # Calculate log probabilities
+                log_probs = torch.log_softmax(logits[0], dim=-1)
+                total_log_prob += log_probs[int(tok_id.item())].item()
+                tokens_used = i + 1
 
-            # Decode incrementally to detect stopping conditions
-            partial_text = self.tokenizer.decode(gen_ids[:tokens_used], skip_special_tokens=True)
-            if "." in partial_text or "\n" in partial_text or (eos_id is not None and tok_id.item() == eos_id):
-                displayed_text = partial_text
-                break
+                # Decode incrementally to detect stopping conditions
+                partial_text = self.tokenizer.decode(gen_ids[:tokens_used], skip_special_tokens=True)
+                if "." in partial_text or "\n" in partial_text or (eos_id is not None and tok_id.item() == eos_id):
+                    displayed_text = partial_text
+                    break
 
         if not displayed_text:
             displayed_text = self.tokenizer.decode(gen_ids[:tokens_used], skip_special_tokens=True)
