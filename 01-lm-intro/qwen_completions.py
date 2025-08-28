@@ -186,7 +186,9 @@ print(f"Test completion: '{test_completion}' (log_prob: {test_prob:.4f})")
 
 
 # %%
-def generate_multiple_completions(self: "QwenCompletionGenerator", prompt: str, num_completions: int = 100) -> list[tuple[str, float]]:
+def generate_multiple_completions(
+    self: "QwenCompletionGenerator", prompt: str, num_completions: int = 100
+) -> list[tuple[str, float]]:
     """Generate multiple completions from the given prompt."""
     completions = []
 
