@@ -189,7 +189,8 @@ def demonstrate_log_probability_calculation() -> None:
 
 # %%
 # Run the log probability demonstration
-demonstrate_log_probability_calculation()
+# Uncomment the line below to run the demonstration
+# demonstrate_log_probability_calculation()
 
 
 # %% [markdown]
@@ -324,7 +325,8 @@ def demonstrate_meta_generation() -> list[GenerationResult]:
 
 # %%
 # Run the meta-generation demonstration
-demo_results = demonstrate_meta_generation()
+# Uncomment the line below to run the demonstration
+# demo_results = demonstrate_meta_generation()
 
 
 # %% [markdown]
@@ -467,54 +469,22 @@ def run_comprehensive_analysis(results: list[GenerationResult]) -> None:
 
 
 # %% [markdown]
-# ## 4. Complete Meta-Generation Pipeline
+# ## Conclusion
 #
-# This section provides a complete pipeline that combines all the previous components into a comprehensive meta-generation analysis. You can run the full experiment with customizable parameters.
-
-
-# %%
-def run_complete_meta_generation_pipeline(
-    prompt: str = "The future of artificial intelligence is",
-    num_generations: int = 100,
-    max_length: int = 30,
-    temperature: float = 1.0,
-) -> list[GenerationResult]:
-    """
-    Run the complete meta-generation pipeline with analysis.
-
-    Args:
-        prompt: Text prompt to start generation
-        num_generations: Number of texts to generate
-        max_length: Maximum tokens to generate per text
-        temperature: Sampling temperature for generation
-
-    Returns:
-        List of GenerationResult objects with complete analysis
-    """
-    print("COMPLETE META-GENERATION PIPELINE")
-    print("=" * 60)
-    print(f"Configuration:")
-    print(f"  Prompt: '{prompt}'")
-    print(f"  Generations: {num_generations}")
-    print(f"  Max length: {max_length}")
-    print(f"  Temperature: {temperature}")
-    print("=" * 60)
-
-    # Run the main experiment
-    results = run_meta_generation_experiment(
-        prompt=prompt, num_generations=num_generations, max_length=max_length, temperature=temperature
-    )
-
-    # Run comprehensive analysis
-    run_comprehensive_analysis(results)
-
-    print("\n" + "=" * 60)
-    print("PIPELINE COMPLETE!")
-    print("=" * 60)
-
-    return results
-
-
-# %%
-# Run the complete pipeline
-full_results = run_complete_meta_generation_pipeline()
+# This notebook has demonstrated the key concepts of meta-generation:
+#
+# 1. **Cross-Model Evaluation**: Using different models to evaluate the same generated text
+# 2. **Log Probability Analysis**: Understanding how models assign probabilities to text sequences
+# 3. **Model Agreement Patterns**: Discovering where models agree and disagree in their evaluations
+#
+# ### Key Takeaways:
+# - Larger models often assign different probabilities than smaller models
+# - Model agreement can reveal insights about text quality and naturalness
+# - Meta-generation is useful for model evaluation, quality assessment, and understanding model behavior
+#
+# ### Next Steps:
+# Try experimenting with:
+# - Different prompts and generation parameters
+# - Comparing more model sizes or architectures
+# - Analyzing specific types of text (e.g., creative writing vs. factual content)
+# - Using the results to improve generation quality
