@@ -157,12 +157,12 @@ def run_meta_generation_experiment(
 
         # Small model evaluation
         small_total_log_prob, small_per_token_log_prob, token_count = calculate_log_probability(
-            small_model, tokenizer, full_text, device
+            small_model, tokenizer, full_text, str(device)
         )
 
         # Medium model evaluation
         medium_total_log_prob, medium_per_token_log_prob, _ = calculate_log_probability(
-            medium_model, tokenizer, full_text, device
+            medium_model, tokenizer, full_text, str(device)
         )
 
         result = GenerationResult(
