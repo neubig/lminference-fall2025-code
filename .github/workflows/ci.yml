@@ -26,14 +26,15 @@ jobs:
 
       - name: Install dependencies with uv
         run: |
-          uv pip install --system -e .[dev]
+          # Use uv to install project and dev tooling without pip
+          uv sync --all-extras --group dev
 
       - name: Lint with ruff
         run: |
-          ruff --version
-          ruff check .
+          uv run ruff --version
+          uv run ruff check .
 
       - name: Type check with pyright
         run: |
-          pyright --version
-          pyright
+          uv run pyright --version
+          uv run pyright
