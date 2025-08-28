@@ -31,10 +31,10 @@ jobs:
 
       - name: Lint with ruff
         run: |
-          uv run ruff --version
-          uv run ruff check .
+          uv run --no-project ruff --version
+          uv run --no-project ruff check .
 
       - name: Type check with pyright
         run: |
-          uv run pyright --version
-          uv run pyright
+          uv run --no-project pyright --version
+          uv run --no-project pyright
