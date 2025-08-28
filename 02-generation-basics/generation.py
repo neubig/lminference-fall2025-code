@@ -173,7 +173,6 @@ def demonstrate_temperature_sampling() -> dict[float, list[str]]:
 
     for temp in temperatures:
         temp_label = "Greedy" if temp == 0.0 else f"T={temp}"
-        print(f"{temp_label}:")
 
         generated_texts[temp] = []
         # Generate three examples for each temperature to show diversity
@@ -181,7 +180,7 @@ def demonstrate_temperature_sampling() -> dict[float, list[str]]:
             generated = generate_with_temperature(model, tokenizer, prompt, temp, max_length=25)
             generated_part = generated[len(prompt) :].strip()
             generated_texts[temp].append(generated_part)
-            print(f"  {i+1}: {generated_part}")
+            print(f"=== {temp_label} {i+1}:\n{generated_part}")
         print()  # Add blank line between temperature groups
 
     return generated_texts
@@ -417,12 +416,6 @@ def run_evaluation_demo(generated_texts: dict[float, list[str]]) -> None:
             example = temp_groups[temp][0]
             temp_label = "Greedy" if temp == 0.0 else f"T={temp}"
             print(f"{temp_label}: '{example.generated_text[:50]}...' (Fluency: {example.fluency_score:.1f})")
-
-        print("\nKey Findings:")
-        print("- Cross-generation diversity measures how different the 3 outputs are from each other")
-        print("- T=0 (greedy) should have diversity ≈0 since all outputs are identical")
-        print("- Higher temperatures should show increased diversity across generations")
-        print("- Fluency scores help identify the optimal temperature range")
 
         # Find optimal temperature based on fluency
         best_temp = max(
