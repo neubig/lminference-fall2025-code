@@ -38,10 +38,6 @@ dev = [
   "pre-commit>=3.7",
 ]
 
-[build-system]
-requires = ["hatchling>=1.18"]
-build-backend = "hatchling.build"
-
 [tool.ruff]
 line-length = 120
 # Keep target version modern but compatible with Colab
@@ -94,3 +90,13 @@ reportMissingImports = "warning"
 reportMissingTypeStubs = "none"
 # Suppress attribute access issues common in narrative/monkey-patched code
 reportAttributeAccessIssue = "none"
+
+[tool.markdownlint]
+# Markdownlint configuration for educational content
+default = true
+MD033 = false  # Allow inline HTML (useful for badges, etc.)
+MD041 = false  # Allow files to not start with H1 (some have badges first)
+MD012 = false  # Allow multiple consecutive blank lines for readability
+
+[tool.markdownlint.MD013]
+line_length = 120  # Allow longer lines for URLs and code blocks
