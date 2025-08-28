@@ -26,8 +26,8 @@ jobs:
 
       - name: Install dependencies with uv
         run: |
-          # Use uv to install project and dev tooling without pip
-          uv sync --all-extras --group dev
+          # Install only dev tooling and do not install the project itself
+          uv sync --only-dev --no-install-project
 
       - name: Lint with ruff
         run: |
