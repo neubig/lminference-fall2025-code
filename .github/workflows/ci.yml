@@ -29,12 +29,7 @@ jobs:
           # Install only dev tooling and do not install the project itself
           uv sync --only-dev --no-install-project
 
-      - name: Lint with ruff
+      - name: Run pre-commit (all files)
         run: |
-          uv run --no-project ruff --version
-          uv run --no-project ruff check .
-
-      - name: Type check with pyright
-        run: |
-          uv run --no-project pyright --version
-          uv run --no-project pyright
+          uv run --no-project pre-commit --version
+          uv run --no-project pre-commit run --all-files --show-diff-on-failure
