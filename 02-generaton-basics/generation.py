@@ -17,7 +17,7 @@
 #
 # By Graham Neubig for [11-664/763 Inference Algorithms for Language Modeling](https://phontron.com/class/lminference-fall2025/)
 #
-# [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/neubig/lminference-fall2025-code/02-generation-basics/2025-09-02-sampling-methods/generation.ipynb)
+# [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/neubig/lminference-fall2025-code/blob/main/02-generation-basics/generation.ipynb)
 #
 # This notebook explores temperature sampling, the most fundamental technique for controlling randomness in text generation. Temperature sampling modifies the probability distribution over next tokens by scaling the logits before applying softmax.
 #
