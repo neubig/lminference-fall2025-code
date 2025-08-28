@@ -17,7 +17,7 @@
 #
 # By Graham Neubig for [11-664/763 Inference Algorithms for Language Modeling](https://phontron.com/class/lminference-fall2025/)
 #
-# [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/neubig/lminference-fall2025-code/02-generation-basics/2025-09-02-sampling-methods/probability.ipynb)
+# [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/neubig/lminference-fall2025-code/blob/main/02-generation-basics/probability.ipynb)
 #
 # This notebook explores the fundamental probability concepts that underlie language models and text generation. We'll cover key mathematical concepts and their PyTorch implementations, building intuition for how sampling strategies work in practice.
 #
