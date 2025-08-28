@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import Any, cast
 
 import torch
 import torch.nn as nn
@@ -90,21 +91,13 @@ class CausalSelfAttention(nn.Module):
             )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        B, T, C = (
-            x.size()
-        )  # batch size, sequence length, embedding dimensionality (n_embd)
+        B, T, C = x.size()  # batch size, sequence length, embedding dimensionality (n_embd)
 
         # Calculate query, key, values for all heads in batch and move head forward to be the batch dim
         q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
-        k = k.view(B, T, self.n_head, C // self.n_head).transpose(
-            1, 2
-        )  # (B, nh, T, hs)
-        q = q.view(B, T, self.n_head, C // self.n_head).transpose(
-            1, 2
-        )  # (B, nh, T, hs)
-        v = v.view(B, T, self.n_head, C // self.n_head).transpose(
-            1, 2
-        )  # (B, nh, T, hs)
+        k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)  # (B, nh, T, hs)
+        q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)  # (B, nh, T, hs)
+        v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)  # (B, nh, T, hs)
 
         # Causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
         if self.flash:
@@ -124,9 +117,7 @@ class CausalSelfAttention(nn.Module):
             att = F.softmax(att, dim=-1)
             att = self.attn_dropout(att)
             y = att @ v  # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
-        y = (
-            y.transpose(1, 2).contiguous().view(B, T, C)
-        )  # re-assemble all head outputs side by side
+        y = y.transpose(1, 2).contiguous().view(B, T, C)  # re-assemble all head outputs side by side
 
         # Output projection
         y = self.resid_dropout(self.c_proj(y))
@@ -195,9 +186,7 @@ class GPT2(nn.Module):
         # Apply special scaled init to the residual projections, per GPT-2 paper
         for pn, p in self.named_parameters():
             if pn.endswith("c_proj.weight"):
-                torch.nn.init.normal_(
-                    p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer)
-                )
+                torch.nn.init.normal_(p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer))
 
     def get_num_params(self, non_embedding: bool = True) -> int:
         """Return the number of parameters in the model"""
@@ -219,18 +208,14 @@ class GPT2(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
         device = idx.device
         _, t = idx.size()
-        assert t <= self.config.block_size, (
-            f"Cannot forward sequence of length {t}, block size is only {self.config.block_size}"
-        )
+        assert (
+            t <= self.config.block_size
+        ), f"Cannot forward sequence of length {t}, block size is only {self.config.block_size}"
         pos = torch.arange(0, t, dtype=torch.long, device=device)  # shape (t)
 
         # Forward the GPT model itself
-        tok_emb = self.transformer.wte(
-            idx
-        )  # token embeddings of shape (b, t, n_embd)  # type: ignore
-        pos_emb = self.transformer.wpe(
-            pos
-        )  # position embeddings of shape (t, n_embd)  # type: ignore
+        tok_emb = self.transformer.wte(idx)  # token embeddings of shape (b, t, n_embd)  # type: ignore
+        pos_emb = self.transformer.wpe(pos)  # position embeddings of shape (t, n_embd)  # type: ignore
         x = self.transformer.drop(tok_emb + pos_emb)  # type: ignore
         for block in self.transformer.h:  # type: ignore
             x = block(x)
@@ -239,14 +224,10 @@ class GPT2(nn.Module):
         if targets is not None:
             # If we are given some desired targets also calculate the loss
             logits = self.lm_head(x)
-            loss = F.cross_entropy(
-                logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1
-            )
+            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)
         else:
             # Inference-time mini-optimization: only forward the lm_head on the very last position
-            logits = self.lm_head(
-                x[:, [-1], :]
-            )  # note: using list [-1] to preserve the time dim
+            logits = self.lm_head(x[:, [-1], :])  # note: using list [-1] to preserve the time dim
             loss = None
 
         return logits, loss
@@ -270,13 +251,11 @@ class GPT2(nn.Module):
         config_args["block_size"] = 1024  # always 1024 for GPT model checkpoints
         config_args["bias"] = True  # GPT-2 uses bias
         # create a from-scratch initialized minGPT model
-        config = GPT2Config(**config_args)
+        config = GPT2Config(**cast(dict[str, Any], config_args))
         model = cls(config)
         sd = model.state_dict()
         sd_keys = sd.keys()
-        sd_keys = [
-            k for k in sd_keys if not k.endswith(".attn.bias")
-        ]  # discard this mask / buffer, not a param
+        sd_keys = [k for k in sd_keys if not k.endswith(".attn.bias")]  # discard this mask / buffer, not a param
 
         # init a huggingface/transformers model
         model_hf = GPT2LMHeadModel.from_pretrained(model_type)
@@ -284,12 +263,8 @@ class GPT2(nn.Module):
 
         # copy while ensuring all of the parameters are aligned and match in names and shapes
         sd_keys_hf = sd_hf.keys()
-        sd_keys_hf = [
-            k for k in sd_keys_hf if not k.endswith(".attn.masked_bias")
-        ]  # ignore these, just a buffer
-        sd_keys_hf = [
-            k for k in sd_keys_hf if not k.endswith(".attn.bias")
-        ]  # same, just the mask (buffer)
+        sd_keys_hf = [k for k in sd_keys_hf if not k.endswith(".attn.masked_bias")]  # ignore these, just a buffer
+        sd_keys_hf = [k for k in sd_keys_hf if not k.endswith(".attn.bias")]  # same, just the mask (buffer)
         transposed = [
             "attn.c_attn.weight",
             "attn.c_proj.weight",
@@ -298,9 +273,7 @@ class GPT2(nn.Module):
         ]
         # basically the openai checkpoints use a "Conv1D" module, but we only want to use a vanilla Linear
         # this means that we have to transpose these weights when we import them
-        assert len(sd_keys_hf) == len(sd_keys), (
-            f"mismatched keys: {len(sd_keys_hf)} != {len(sd_keys)}"
-        )
+        assert len(sd_keys_hf) == len(sd_keys), f"mismatched keys: {len(sd_keys_hf)} != {len(sd_keys)}"
         for k in sd_keys_hf:
             if any(k.endswith(w) for w in transposed):
                 # special treatment for the Conv1D weights we need to transpose

@@ -10,6 +10,7 @@ across different notebooks and experiments.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
+from collections.abc import Iterable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -122,9 +123,7 @@ def plot_bar_chart(
     return ax
 
 
-def create_subplot_grid(
-    rows: int, cols: int, figsize: tuple[int, int] = (12, 8)
-) -> tuple[Figure, Any]:
+def create_subplot_grid(rows: int, cols: int, figsize: tuple[int, int] = (12, 8)) -> tuple[Figure, Any]:
     """
     Create a subplot grid with consistent styling.
 
@@ -197,7 +196,7 @@ def plot_comparison_bars(
     data_dict: dict[str, float],
     title: str = "Comparison",
     ylabel: str = "Value",
-    colors: Any = None,
+    colors: Iterable[Any] | None = None,
     ax: Axes | None = None,
 ) -> Axes:
     """
@@ -365,9 +364,7 @@ def setup_axis_with_rotation(
     if xticks is not None:
         ax.set_xticks(xticks)
     if xticklabels is not None:
-        ax.set_xticklabels(
-            xticklabels, rotation=rotation, ha="right", fontsize=fontsize
-        )
+        ax.set_xticklabels(xticklabels, rotation=rotation, ha="right", fontsize=fontsize)
     if yticks is not None:
         ax.set_yticks(yticks)
     if yticklabels is not None:
@@ -392,8 +389,7 @@ def plot_efficiency_dashboard(
     """
     fig = plt.figure(figsize=(24, 20))
     fig.suptitle(
-        "Language Model Sampling Efficiency Analysis\n"
-        "Comprehensive Performance Metrics Across Different Strategies",
+        "Language Model Sampling Efficiency Analysis\n" "Comprehensive Performance Metrics Across Different Strategies",
         fontsize=16,
         fontweight="bold",
         y=0.98,
@@ -405,9 +401,7 @@ def plot_efficiency_dashboard(
     if throughput_data:
         strategy_throughput = [throughput_data.get(s, 0) for s in strategies]
         colors = plt.cm.get_cmap("Set3")(np.linspace(0, 1, len(strategies)))
-        bars = ax1.bar(
-            range(len(strategies)), strategy_throughput, color=colors, alpha=0.8
-        )
+        bars = ax1.bar(range(len(strategies)), strategy_throughput, color=colors, alpha=0.8)
 
         # Add value labels on bars
         for bar, value in zip(bars, strategy_throughput):
@@ -469,9 +463,7 @@ def plot_efficiency_dashboard(
         ax4 = plt.subplot(4, 3, 4)
         batch_data = sensitivity_data["batch_size"]
         for strategy, data in batch_data.items():
-            ax4.plot(
-                data["batch_sizes"], data["throughput"], "o-", label=strategy, alpha=0.7
-            )
+            ax4.plot(data["batch_sizes"], data["throughput"], "o-", label=strategy, alpha=0.7)
         setup_axis_with_rotation(
             ax4,
             title="Batch Size vs Throughput",
@@ -546,9 +538,7 @@ def plot_efficiency_dashboard(
         ax8 = plt.subplot(4, 3, 8)
         length_data = sensitivity_data["max_length"]
         for strategy, data in length_data.items():
-            ax8.plot(
-                data["max_lengths"], data["throughput"], "o-", label=strategy, alpha=0.7
-            )
+            ax8.plot(data["max_lengths"], data["throughput"], "o-", label=strategy, alpha=0.7)
         setup_axis_with_rotation(
             ax8,
             title="Length Scaling",
@@ -600,8 +590,7 @@ def plot_generation_dashboard(
     """
     fig = plt.figure(figsize=(20, 16))
     fig.suptitle(
-        "Language Model Generation Quality Analysis\n"
-        "Comprehensive Quality Metrics Across Different Strategies",
+        "Language Model Generation Quality Analysis\n" "Comprehensive Quality Metrics Across Different Strategies",
         fontsize=16,
         fontweight="bold",
         y=0.98,
@@ -617,9 +606,7 @@ def plot_generation_dashboard(
             ylabel="Average Length (words)",
             ax=ax1,
         )
-        setup_axis_with_rotation(
-            ax1, xticks=range(len(strategies)), xticklabels=strategies
-        )
+        setup_axis_with_rotation(ax1, xticks=range(len(strategies)), xticklabels=strategies)
 
     # Generation time by strategy
     ax2 = plt.subplot(3, 3, 2)
@@ -631,9 +618,7 @@ def plot_generation_dashboard(
             ylabel="Average Time (seconds)",
             ax=ax2,
         )
-        setup_axis_with_rotation(
-            ax2, xticks=range(len(strategies)), xticklabels=strategies
-        )
+        setup_axis_with_rotation(ax2, xticks=range(len(strategies)), xticklabels=strategies)
 
     # Text diversity by strategy
     ax3 = plt.subplot(3, 3, 3)
@@ -645,9 +630,7 @@ def plot_generation_dashboard(
             ylabel="Unique Words Ratio (%)",
             ax=ax3,
         )
-        setup_axis_with_rotation(
-            ax3, xticks=range(len(strategies)), xticklabels=strategies
-        )
+        setup_axis_with_rotation(ax3, xticks=range(len(strategies)), xticklabels=strategies)
 
     # Average text length by model
     ax4 = plt.subplot(3, 3, 4)
@@ -671,9 +654,7 @@ def plot_generation_dashboard(
             ylabel="Fluency Score (1-10)",
             ax=ax5,
         )
-        setup_axis_with_rotation(
-            ax5, xticks=range(len(strategies)), xticklabels=strategies
-        )
+        setup_axis_with_rotation(ax5, xticks=range(len(strategies)), xticklabels=strategies)
         ax5.set_ylim(0, 10)
 
     # Speed vs Diversity tradeoff
@@ -702,9 +683,7 @@ def plot_generation_dashboard(
             ylabel="Tokens per Second",
             ax=ax7,
         )
-        setup_axis_with_rotation(
-            ax7, xticks=range(len(strategies)), xticklabels=strategies
-        )
+        setup_axis_with_rotation(ax7, xticks=range(len(strategies)), xticklabels=strategies)
 
     plt.tight_layout()
     return fig
@@ -741,9 +720,7 @@ def plot_generation_incremental(
                 ylabel="Average Length (words)",
                 ax=ax,
             )
-            setup_axis_with_rotation(
-                ax, xticks=range(len(strategies)), xticklabels=strategies
-            )
+            setup_axis_with_rotation(ax, xticks=range(len(strategies)), xticklabels=strategies)
 
     elif plot_type == "time":
         time_data = results_data.get("avg_time", {})
@@ -754,9 +731,7 @@ def plot_generation_incremental(
                 ylabel="Average Time (seconds)",
                 ax=ax,
             )
-            setup_axis_with_rotation(
-                ax, xticks=range(len(strategies)), xticklabels=strategies
-            )
+            setup_axis_with_rotation(ax, xticks=range(len(strategies)), xticklabels=strategies)
 
     elif plot_type == "diversity":
         diversity_data = results_data.get("diversity", {})
@@ -767,9 +742,7 @@ def plot_generation_incremental(
                 ylabel="Unique Words Ratio (%)",
                 ax=ax,
             )
-            setup_axis_with_rotation(
-                ax, xticks=range(len(strategies)), xticklabels=strategies
-            )
+            setup_axis_with_rotation(ax, xticks=range(len(strategies)), xticklabels=strategies)
 
     elif plot_type == "fluency":
         fluency_data = results_data.get("fluency", {})
@@ -780,9 +753,7 @@ def plot_generation_incremental(
                 ylabel="Fluency Score (1-10)",
                 ax=ax,
             )
-            setup_axis_with_rotation(
-                ax, xticks=range(len(strategies)), xticklabels=strategies
-            )
+            setup_axis_with_rotation(ax, xticks=range(len(strategies)), xticklabels=strategies)
             ax.set_ylim(0, 10)
 
     elif plot_type == "tradeoff":
@@ -793,9 +764,7 @@ def plot_generation_incremental(
             for i, strategy in enumerate(strategies):
                 time_val = time_data.get(strategy, 0)
                 div_val = diversity_data.get(strategy, 0)
-                ax.scatter(
-                    time_val, div_val, s=100, alpha=0.7, label=strategy, color=colors[i]
-                )
+                ax.scatter(time_val, div_val, s=100, alpha=0.7, label=strategy, color=colors[i])
 
         setup_axis_with_rotation(
             ax,
@@ -814,9 +783,7 @@ def plot_generation_incremental(
                 ylabel="Tokens per Second",
                 ax=ax,
             )
-            setup_axis_with_rotation(
-                ax, xticks=range(len(strategies)), xticklabels=strategies
-            )
+            setup_axis_with_rotation(ax, xticks=range(len(strategies)), xticklabels=strategies)
 
     elif plot_type == "model_comparison" and models:
         length_data = results_data.get("avg_length", {})
@@ -862,9 +829,7 @@ def plot_meta_generation_dashboard(
     ax1 = plt.subplot(3, 3, 1)
     likelihood_data = results_data.get("likelihood_ratios", [])
     if likelihood_data:
-        ax1.hist(
-            likelihood_data, bins=30, alpha=0.7, color="skyblue", label="Medium - Small"
-        )
+        ax1.hist(likelihood_data, bins=30, alpha=0.7, color="skyblue", label="Medium - Small")
         ax1.axvline(0, color="red", linestyle="--", alpha=0.7, label="No Preference")
         setup_axis_with_rotation(
             ax1,
@@ -879,17 +844,11 @@ def plot_meta_generation_dashboard(
     preference_data = results_data.get("preferences_by_generator", {})
     if preference_data:
         x = np.arange(len(generators))
-        small_prefs = [
-            preference_data.get(gen, {}).get("small", 0) for gen in generators
-        ]
-        medium_prefs = [
-            preference_data.get(gen, {}).get("medium", 0) for gen in generators
-        ]
+        small_prefs = [preference_data.get(gen, {}).get("small", 0) for gen in generators]
+        medium_prefs = [preference_data.get(gen, {}).get("medium", 0) for gen in generators]
 
         width = 0.35
-        ax2.bar(
-            x - width / 2, small_prefs, width, label="Small Model Preferred", alpha=0.7
-        )
+        ax2.bar(x - width / 2, small_prefs, width, label="Small Model Preferred", alpha=0.7)
         ax2.bar(
             x + width / 2,
             medium_prefs,
@@ -972,9 +931,7 @@ def plot_meta_generation_dashboard(
             if gen_ratios:
                 ax6.hist(gen_ratios, bins=20, alpha=0.5, label=gen)
 
-        setup_axis_with_rotation(
-            ax6, title="Preference Distribution by Generator", ylabel="Likelihood Ratio"
-        )
+        setup_axis_with_rotation(ax6, title="Preference Distribution by Generator", ylabel="Likelihood Ratio")
         ax6.legend()
 
     # Likelihood heatmap
@@ -1061,9 +1018,7 @@ def plot_sampling_comparison(
         ylabel="Probability",
         ax=axes[0],
     )
-    setup_axis_with_rotation(
-        axes[0], xticks=range(len(focused_words)), xticklabels=focused_words
-    )
+    setup_axis_with_rotation(axes[0], xticks=range(len(focused_words)), xticklabels=focused_words)
 
     # Temperature variations
     if temperatures:
@@ -1075,9 +1030,7 @@ def plot_sampling_comparison(
                 ylabel="Probability",
                 ax=axes[i + 1],
             )
-            setup_axis_with_rotation(
-                axes[i + 1], xticks=range(len(focused_words)), xticklabels=focused_words
-            )
+            setup_axis_with_rotation(axes[i + 1], xticks=range(len(focused_words)), xticklabels=focused_words)
 
     # Top-k variations
     if top_k_values:
@@ -1105,9 +1058,7 @@ def plot_sampling_comparison(
             ylabel="Probability",
             ax=axes[7],
         )
-        setup_axis_with_rotation(
-            axes[7], xticks=range(len(focused_words)), xticklabels=focused_words
-        )
+        setup_axis_with_rotation(axes[7], xticks=range(len(focused_words)), xticklabels=focused_words)
 
     plt.tight_layout()
     return fig
@@ -1172,9 +1123,7 @@ def plot_mle_analysis(
     # True vs MLE comparison
     x = range(len(key_words))
     width = 0.35
-    axes[0].bar(
-        [xi - width / 2 for xi in x], true_probs, width, label="True", alpha=0.7
-    )
+    axes[0].bar([xi - width / 2 for xi in x], true_probs, width, label="True", alpha=0.7)
     axes[0].bar([xi + width / 2 for xi in x], mle_probs, width, label="MLE", alpha=0.7)
 
     setup_axis_with_rotation(

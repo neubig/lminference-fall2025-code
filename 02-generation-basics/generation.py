@@ -111,9 +111,7 @@ def generate_with_temperature(
             logits, _ = model(input_ids)
             next_token_logits = logits[0, -1, :]
             next_token = temperature_sample(next_token_logits, temperature)
-            input_ids = torch.cat(
-                [input_ids, next_token.unsqueeze(0).unsqueeze(0)], dim=1
-            )
+            input_ids = torch.cat([input_ids, next_token.unsqueeze(0).unsqueeze(0)], dim=1)
 
     return tokenizer.decode(input_ids[0].tolist())
 
@@ -134,9 +132,7 @@ def main() -> None:
     print(f"Prompt: '{prompt}'\n")
 
     for temp in temperatures:
-        generated = generate_with_temperature(
-            model, tokenizer, prompt, temp, max_length=25
-        )
+        generated = generate_with_temperature(model, tokenizer, prompt, temp, max_length=25)
         generated_part = generated[len(prompt) :].strip()
         temp_label = "Greedy" if temp == 0.0 else f"T={temp}"
         print(f"{temp_label:8}: {generated_part}")
@@ -160,17 +156,13 @@ def main() -> None:
             avg_fluency = sum(r.fluency_score for r in group) / len(group)
 
             temp_label = "Greedy" if temp == 0.0 else f"T={temp}"
-            print(
-                f"{temp_label:8}: Diversity={avg_diversity:.3f}, Time={avg_time:.3f}s, Fluency={avg_fluency:.1f}/10"
-            )
+            print(f"{temp_label:8}: Diversity={avg_diversity:.3f}, Time={avg_time:.3f}s, Fluency={avg_fluency:.1f}/10")
 
         print("\nSample outputs:")
         for temp in sorted(temp_groups.keys()):
             example = temp_groups[temp][0]
             temp_label = "Greedy" if temp == 0.0 else f"T={temp}"
-            print(
-                f"{temp_label}: '{example.generated_text[:50]}...' (Fluency: {example.fluency_score:.1f})"
-            )
+            print(f"{temp_label}: '{example.generated_text[:50]}...' (Fluency: {example.fluency_score:.1f})")
 
         print("\nKey Findings:")
         print("- Diversity generally increases with temperature")
@@ -180,12 +172,9 @@ def main() -> None:
         # Find optimal temperature based on fluency
         best_temp = max(
             temp_groups.keys(),
-            key=lambda t: sum(r.fluency_score for r in temp_groups[t])
-            / len(temp_groups[t]),
+            key=lambda t: sum(r.fluency_score for r in temp_groups[t]) / len(temp_groups[t]),
         )
-        best_fluency = sum(r.fluency_score for r in temp_groups[best_temp]) / len(
-            temp_groups[best_temp]
-        )
+        best_fluency = sum(r.fluency_score for r in temp_groups[best_temp]) / len(temp_groups[best_temp])
         print(f"- Highest average fluency: T={best_temp} ({best_fluency:.1f}/10)")
 
     except ValueError as e:
@@ -265,14 +254,10 @@ def evaluate_fluency(text: str) -> float:
     base_url = os.getenv("LLM_BASE_URL")
 
     if not api_key:
-        raise ValueError(
-            "LLM_API_KEY environment variable is required for fluency evaluation"
-        )
+        raise ValueError("LLM_API_KEY environment variable is required for fluency evaluation")
 
     if not model:
-        raise ValueError(
-            "LLM_MODEL environment variable is required for fluency evaluation"
-        )
+        raise ValueError("LLM_MODEL environment variable is required for fluency evaluation")
 
     if completion is None:
         raise ValueError("litellm package is required for fluency evaluation")
@@ -312,9 +297,7 @@ def evaluate_fluency(text: str) -> float:
                 score = float(numbers[0])
                 return max(0.0, min(10.0, score))
             else:
-                raise ValueError(
-                    f"Could not parse fluency score from response: {score_text}"
-                ) from None
+                raise ValueError(f"Could not parse fluency score from response: {score_text}") from None
 
     except Exception as e:
         raise Exception(f"Fluency evaluation failed: {str(e)}") from e
@@ -367,9 +350,7 @@ def run_evaluation() -> list[GenerationResult]:
             print(f"  Evaluating T={temp} with prompt: '{prompt[:30]}...'")
 
             start_time = time.time()
-            generated = generate_with_temperature(
-                model, tokenizer, prompt, temp, max_length=20
-            )
+            generated = generate_with_temperature(model, tokenizer, prompt, temp, max_length=20)
             generation_time = time.time() - start_time
 
             generated_part = generated[len(prompt) :].strip()

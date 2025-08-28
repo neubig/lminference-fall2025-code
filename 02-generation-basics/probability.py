@@ -36,7 +36,7 @@
 
 # %%
 # Install required packages
-# %pip install torch>=2.5.0 numpy>=2.0.0 matplotlib>=3.9.0
+# # %pip install torch>=2.5.0 numpy>=2.0.0 matplotlib>=3.9.0
 
 # %%
 
@@ -51,6 +51,7 @@ from plotting_utils import (
     plot_bar_chart,
     plot_conditional_probability_heatmap,
     plot_heatmap,
+    setup_axis_with_rotation,
 )
 
 # Set up plotting style
@@ -191,9 +192,7 @@ def sample_from_bigram_model(
 
             if temperature != 1.0:
                 # Apply temperature: P_T(x) = softmax(log P(x) / T)
-                logits = torch.log(
-                    next_probs + 1e-8
-                )  # Add small epsilon to avoid log(0)
+                logits = torch.log(next_probs + 1e-8)  # Add small epsilon to avoid log(0)
                 next_probs = F.softmax(logits / temperature, dim=0)
 
             # Sample next word
@@ -216,9 +215,7 @@ def demonstrate_sampling() -> list[list[str]]:
     Demonstrate sampling from the bigram model and show example sentences.
     """
     # Generate a small number of sequences for demonstration
-    sequences = sample_from_bigram_model(
-        conditional_probs, word_to_idx, num_sequences=20, max_length=8
-    )
+    sequences = sample_from_bigram_model(conditional_probs, word_to_idx, num_sequences=20, max_length=8)
 
     # Show a few example sentences
     for i in range(3):
@@ -267,9 +264,7 @@ def estimate_joint_probabilities_from_sequences(
             total_bigrams += 1
 
     # Estimate joint probabilities from counts
-    joint_prob_estimated = (
-        bigram_counts / total_bigrams if total_bigrams > 0 else bigram_counts
-    )
+    joint_prob_estimated = bigram_counts / total_bigrams if total_bigrams > 0 else bigram_counts
 
     return bigram_counts, joint_prob_estimated
 
@@ -295,21 +290,21 @@ def estimate_conditional_probabilities_from_sequences(
     conditional_prob_estimated = torch.zeros((vocab_size, vocab_size))
     for i in range(vocab_size):
         if current_word_counts[i] > 0:
-            conditional_prob_estimated[i, :] = (
-                bigram_counts[i, :] / current_word_counts[i]
-            )
+            conditional_prob_estimated[i, :] = bigram_counts[i, :] / current_word_counts[i]
 
     return bigram_counts, conditional_prob_estimated
 
 
-def demonstrate_sampling_based_estimation() -> tuple[
-    torch.Tensor,
-    torch.Tensor,
-    list[int],
-    list[dict[str, float]],
-    list[float],
-    dict[str, float],
-]:
+def demonstrate_sampling_based_estimation() -> (
+    tuple[
+        torch.Tensor,
+        torch.Tensor,
+        list[int],
+        list[dict[str, float]],
+        list[float],
+        dict[str, float],
+    ]
+):
     """
     Demonstrate how to estimate conditional probabilities through sampling from known conditionals.
     Shows convergence of specific bigram probability estimates and overall estimation error.
@@ -350,8 +345,8 @@ def demonstrate_sampling_based_estimation() -> tuple[
         # Convert string sequences to index sequences for estimation
         sequences_idx = [[word_to_idx[word] for word in seq] for seq in sequences]
         # Estimate conditional probabilities from the sequences
-        bigram_counts, conditional_prob_estimated = (
-            estimate_conditional_probabilities_from_sequences(sequences_idx, vocab_size)
+        bigram_counts, conditional_prob_estimated = estimate_conditional_probabilities_from_sequences(
+            sequences_idx, vocab_size
         )
 
         # Track specific bigram probabilities
@@ -428,9 +423,14 @@ for i, bigram_name in enumerate(bigram_names):
         label=f"True P({bigram_name.replace('_', ' | ')}) = {true_prob:.3f}",
     )
 
-axes[0].set_title("Individual Conditional Probability Convergence", fontsize=14)
-axes[0].set_xlabel("Number of Sequences (log scale)", fontsize=12)
-axes[0].set_ylabel("Estimated Conditional Probability", fontsize=12)
+# Setup left panel with utility function
+setup_axis_with_rotation(
+    axes[0],
+    title="Individual Conditional Probability Convergence",
+    xlabel="Number of Sequences (log scale)",
+    ylabel="Estimated Conditional Probability",
+    fontsize=12,
+)
 axes[0].grid(True, alpha=0.3)
 axes[0].set_xscale("log")
 axes[0].legend(fontsize=10)
@@ -446,9 +446,14 @@ axes[1].plot(
     label="Mean Absolute Error",
 )
 
-axes[1].set_title("Overall Estimation Error Convergence", fontsize=14)
-axes[1].set_xlabel("Number of Sequences (log scale)", fontsize=12)
-axes[1].set_ylabel("Mean Absolute Error", fontsize=12)
+# Setup right panel with utility function
+setup_axis_with_rotation(
+    axes[1],
+    title="Overall Estimation Error Convergence",
+    xlabel="Number of Sequences (log scale)",
+    ylabel="Mean Absolute Error",
+    fontsize=12,
+)
 axes[1].grid(True, alpha=0.3)
 axes[1].set_xscale("log")
 axes[1].legend(fontsize=10)
@@ -493,17 +498,11 @@ plt.show()
 # by sampling to get the marginal distribution of current words
 
 # Sample a large number of sequences to get a good estimate of the marginal distribution
-large_sample_sequences = sample_from_bigram_model(
-    conditional_probs, word_to_idx, num_sequences=10000, max_length=8
-)
-large_sample_sequences_idx = [
-    [word_to_idx[word] for word in seq] for seq in large_sample_sequences
-]
+large_sample_sequences = sample_from_bigram_model(conditional_probs, word_to_idx, num_sequences=10000, max_length=8)
+large_sample_sequences_idx = [[word_to_idx[word] for word in seq] for seq in large_sample_sequences]
 
 # Get both joint and conditional probabilities from the large sample
-_, joint_prob = estimate_joint_probabilities_from_sequences(
-    large_sample_sequences_idx, vocab_size
-)
+_, joint_prob = estimate_joint_probabilities_from_sequences(large_sample_sequences_idx, vocab_size)
 
 marginal_x_computed = torch.sum(joint_prob, dim=1)
 marginal_y_computed = torch.sum(joint_prob, dim=0)
@@ -562,9 +561,7 @@ plt.show()
 
 
 # %%
-def demonstrate_latent_variables() -> tuple[
-    torch.Tensor, dict[str, int], list[str], list[tuple[str, str, str]]
-]:
+def demonstrate_latent_variables() -> tuple[torch.Tensor, dict[str, int], list[str], list[tuple[str, str, str]]]:
     """
     Demonstrate latent variables where z represents middle words between first (x) and last (y) words.
     Uses the bigram model from section 1 and sampling from section 2.
@@ -572,9 +569,7 @@ def demonstrate_latent_variables() -> tuple[
 
     # Generate sequences using the bigram model from sections 1-2
     num_samples = 1000
-    sequences = sample_from_bigram_model(
-        conditional_probs, word_to_idx, num_sequences=num_samples, max_length=10
-    )
+    sequences = sample_from_bigram_model(conditional_probs, word_to_idx, num_sequences=num_samples, max_length=10)
 
     # Convert sequences from indices to words and parse into x, z, y structure
 
@@ -653,9 +648,7 @@ def demonstrate_latent_variables() -> tuple[
 
 
 # Run the latent variable demonstration
-marginal_xy, word_to_idx_mapping, all_words, parsed_examples = (
-    demonstrate_latent_variables()
-)
+marginal_xy, word_to_idx_mapping, all_words, parsed_examples = demonstrate_latent_variables()
 
 # Visualize the latent variable model
 fig, axes = create_subplot_grid(2, 2, figsize=(12, 10))
@@ -671,12 +664,7 @@ for i, x_word in enumerate(x_words):
         if x_word in all_words and y_word in all_words:
             x_idx = all_words.index(x_word) if x_word in all_words else -1
             y_idx = all_words.index(y_word) if y_word in all_words else -1
-            if (
-                x_idx >= 0
-                and y_idx >= 0
-                and x_idx < marginal_xy.shape[0]
-                and y_idx < marginal_xy.shape[1]
-            ):
+            if x_idx >= 0 and y_idx >= 0 and x_idx < marginal_xy.shape[0] and y_idx < marginal_xy.shape[1]:
                 marginal_subset[i, j] = marginal_xy[x_idx, y_idx]
 
 # Plot 1: Empirical first word frequencies
@@ -686,9 +674,7 @@ for x, _z, _y in parsed_examples:
 
 top_x_words = sorted(x_counts.items(), key=lambda x: x[1], reverse=True)[:8]
 x_words_plot = [word for word, _count in top_x_words]
-x_probs_plot = torch.tensor(
-    [count / len(parsed_examples) for _word, count in top_x_words]
-)
+x_probs_plot = torch.tensor([count / len(parsed_examples) for _word, count in top_x_words])
 
 plot_bar_chart(
     x_probs_plot.numpy(),
@@ -722,13 +708,15 @@ top_z_words = sorted(z_counts.items(), key=lambda x: x[1], reverse=True)[:8]
 z_words_plot = [z for z, _count in top_z_words]
 z_probs_plot = torch.tensor([count / len(parsed_examples) for _z, count in top_z_words])
 
-ax = axes[2]
-ax.bar(range(len(z_words_plot)), z_probs_plot.numpy())
-ax.set_title("Distribution of Middle Words (z)")
-ax.set_xlabel("Middle Word Sequence")
-ax.set_ylabel("Frequency")
-ax.set_xticks(range(len(z_words_plot)))
-ax.set_xticklabels(z_words_plot, rotation=45, ha="right")
+plot_bar_chart(
+    z_probs_plot.numpy(),
+    title="Distribution of Middle Words (z)",
+    xlabel="Middle Word Sequence",
+    ylabel="Frequency",
+    ax=axes[2],
+    xticks=range(len(z_words_plot)),
+    xticklabels=z_words_plot,
+)
 
 # Plot 4: Show example sequences as text
 ax = axes[3]
@@ -765,9 +753,7 @@ plt.show()
 
 
 # %%
-def demonstrate_temperature_bias() -> tuple[
-    list[int], list[float], list[float], list[float], list[float]
-]:
+def demonstrate_temperature_bias() -> tuple[list[int], list[float], list[float], list[float], list[float]]:
     """
     Demonstrate how temperature sampling creates biased estimates by comparing
     convergence at T=1.0 vs T=0.5 across the entire conditional distribution.
@@ -795,9 +781,7 @@ def demonstrate_temperature_bias() -> tuple[
         )
         # Convert string sequences to index sequences for estimation
         sequences_t1_idx = [[word_to_idx[word] for word in seq] for seq in sequences_t1]
-        _, estimated_conditional_t1 = estimate_conditional_probabilities_from_sequences(
-            sequences_t1_idx, vocab_size
-        )
+        _, estimated_conditional_t1 = estimate_conditional_probabilities_from_sequences(sequences_t1_idx, vocab_size)
 
         # Calculate errors for all bigrams with non-zero true probability
         errors_t1 = []
@@ -823,14 +807,8 @@ def demonstrate_temperature_bias() -> tuple[
             temperature=0.5,
         )
         # Convert string sequences to index sequences for estimation
-        sequences_t05_idx = [
-            [word_to_idx[word] for word in seq] for seq in sequences_t05
-        ]
-        _, estimated_conditional_t05 = (
-            estimate_conditional_probabilities_from_sequences(
-                sequences_t05_idx, vocab_size
-            )
-        )
+        sequences_t05_idx = [[word_to_idx[word] for word in seq] for seq in sequences_t05]
+        _, estimated_conditional_t05 = estimate_conditional_probabilities_from_sequences(sequences_t05_idx, vocab_size)
 
         # Calculate errors for all bigrams with non-zero true probability
         errors_t05 = []
@@ -851,9 +829,7 @@ def demonstrate_temperature_bias() -> tuple[
 
 
 # Run the temperature bias demonstration
-sample_sizes, mean_errors_t1, max_errors_t1, mean_errors_t05, max_errors_t05 = (
-    demonstrate_temperature_bias()
-)
+sample_sizes, mean_errors_t1, max_errors_t1, mean_errors_t05, max_errors_t05 = demonstrate_temperature_bias()
 
 # Visualize the comparison - focus on mean error only
 fig, ax = plt.subplots(figsize=(10, 6))
@@ -875,10 +851,14 @@ ax.loglog(
     label="T=0.5 (Biased)",
     marker="s",
 )
-ax.set_xlabel("Number of Samples")
-ax.set_ylabel("Mean Absolute Error")
-ax.set_title(
-    "Temperature Sampling Bias: Mean Error Across All Conditional Probabilities"
+
+# Setup axis with utility function
+setup_axis_with_rotation(
+    ax,
+    title="Temperature Sampling Bias: Mean Error Across All Conditional Probabilities",
+    xlabel="Number of Samples",
+    ylabel="Mean Absolute Error",
+    fontsize=12,
 )
 ax.legend()
 ax.grid(True, alpha=0.3)
