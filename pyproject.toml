@@ -1,0 +1,81 @@
+[project]
+name = "lminference-fall2025-code"
+version = "0.1.0"
+description = "Educational code examples and tutorials for CMU Language Model Inference (Fall 2025)"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+authors = [
+  { name = "Graham Neubig", email = "gneubig@cs.cmu.edu" }
+]
+license = { file = "LICENSE" }
+keywords = ["nlp", "llm", "education", "inference", "cmu"]
+
+# Main runtime dependencies used across notebooks/scripts
+# Keep versions reasonably recent but flexible
+dependencies = [
+  "torch>=2.2",
+  "transformers>=4.41",
+  "matplotlib>=3.7",
+  "seaborn>=0.12",
+  "numpy>=1.25",
+  "pandas>=2.0",
+  "jupytext>=1.16",
+]
+
+[project.optional-dependencies]
+# Developer tooling
+dev = [
+  "ruff>=0.5.0",
+  "pyright>=1.1.365",
+]
+
+[build-system]
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 120
+# Keep target version modern but compatible with Colab
+target-version = "py310"
+extend-exclude = [
+  ".git",
+  ".github",
+  ".venv",
+  "**/.venv/**",
+  "**/__pycache__/**",
+  "**/.ipynb_checkpoints/**",
+  "**/*.ipynb",
+]
+
+[tool.ruff.lint]
+# Keep linting pragmatic for educational code
+select = ["E", "F"]
+ignore = [
+  # Allow unused imports in notebooks/scripts where top-level imports are illustrative
+  "F401",
+  # Allow long educational/comment lines and intermediate plotting variables
+  "E501",
+  "F841",
+  # Allow imports not at top of file in narrative notebooks/scripts
+  "E402",
+  # Allow f-strings without placeholders used for formatting consistency
+  "F541",
+]
+
+[tool.pyright]
+pythonVersion = "3.10"
+include = ["."]
+exclude = [
+  ".git",
+  ".github",
+  "**/__pycache__",
+  "**/.ipynb_checkpoints",
+  "**/*.ipynb",
+  ".venv",
+  "**/.venv/**",
+]
+# Keep type checking lenient for educational notebooks
+typeCheckingMode = "basic"
+useLibraryCodeForTypes = true
+reportMissingImports = "warning"
+reportMissingTypeStubs = "none"
