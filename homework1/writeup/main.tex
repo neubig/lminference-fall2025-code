@@ -1,0 +1,281 @@
+\documentclass{article}
+\usepackage{booktabs}
+\usepackage[solutions]{vash_hwstyle}
+
+\title{Homework-1 \\
+11-664/763: Inference Algorithms for Language Modeling\\
+Fall 2025}
+\author{
+    \textbf{Instructors:} Graham Neubig, Amanda Bertsch \\
+    \\
+    \textbf{Teaching Assistants:} Clara Na, Vashisth Tiwari, Xinran Zhao
+}
+\date{\textbf{Due}: September 23rd, 2025} 
+
+\begin{document}
+
+\maketitle
+
+\section*{Instructions}
+
+Please refer to the collaboration, AI use policy as specified in the course syllabus.
+
+\section{Shared Tasks}
+Throughout the semester, you will be working with data from three shared tasks. We host the data for each shared task on Hugging Face; you can access them at \href{https://huggingface.co/datasets/vashistht/11763_datasets}{this link}. We will generally ask for results on the ``dev-test'' split, which consists of 100 examples for each task, using the evaluation scripts provided. The remainder of the examples can be used for validation, tuning hyperparameters, or any other experimentation you would like to perform. The final shared task at the end of the semester will be evaluated on a hidden test set.
+
+\paragraph{Algorithmic}
+
+The task that the language model will tackle is N-best Path Prediction (Top-$P$ Shortest Paths).
+Given a directed graph $G=(V,E)$ with $|V|=N$ nodes labeled $0,\dots,N-1$ and non-negative integer edge weights $w:E\to{1,\dots,W}$, the task is to find the top-$P$ distinct simple paths from source $s=0$ to target $t=N-1$ minimizing the additive cost
+\begin{equation}
+c(\pi)=\sum_{(u,v)\in \pi} w(u,v).
+\end{equation}
+The output is a pair
+\begin{equation}
+\texttt{paths}=[\pi_1,\dots,\pi_P],\quad \texttt{weights}=[c(\pi_1),\dots,c(\pi_P)],
+\end{equation}
+sorted by non-decreasing cost.
+The language model will be expected to use tool calls\footnote{\url{https://platform.openai.com/docs/guides/function-calling}} to specify its answer.
+
+Evaluation compares predicted pairs $(\pi,c(\pi))$ against the reference set with the score
+\begin{equation}
+\mathrm{score}=\frac{\left| {(\pi,c(\pi))}{\text{pred}} \cap {(\pi,c(\pi))}{\text{gold}} \right|}{P}.
+\end{equation}
+
+
+
+\paragraph{MMLU medicine} 
+
+We will use the two medicine-themed splits of MMLU: college\_medicine and professional\_medicine. Evaluation is on exact match with the correct multiple-choice answer (e.g. ``A''). 
+\paragraph{Infobench} 
+
+Infobench provides open-ended queries with detailed evaluation rubrics. Evaluation \textbf{requires calling gpt-5-nano}; we expect that the total cost for evaluation for this homework will be substantially less than $\$5$. See the \href{https://arxiv.org/abs/2401.03601}{paper} for more information.
+
+\section{Written responses}
+
+\subsection{How are MLE, CE, Entropy, and KL divergence Connected?}
+\subsubsection{Given two discrete distributions $P(x)$ and $Q(x)$, how do we define $\Db_{KL}(P|Q)$, the KL Divergence between the two distributions?}
+
+\begin{solve}
+\end{solve}
+
+\subsubsection{MLE and KL}
+
+In the class, we learned about Maximum Likelihood Estimation (MLE). Now consider a dataset $\Dc=\{x_1, \dots, x_N\}$ draw IID from an unknown true distribution $p(x)$. Let us define $p_{o}(x)$ as the the observed/ empirical distribution of the data. We want to fit a parametric model $q(x|\theta)$ to this data.
+
+Show that minimizing the KL divergence between the empirical distribution and the model $D_KL(p_o|q_\theta)$, is equivalent to maximizing the log-likelihood of the data under the model $q(x|\theta)$.
+\begin{solve}
+
+\end{solve}
+
+\subsubsection{KL and CE and Entropy}
+
+Recall that for two discrete distributions  $P ( x )$ and $Q ( x )$, the entropy is defined as  $H ( P )$, and the cross-entropy as $H ( P , Q )$.
+
+Now, you will show that the KL divergence between distributions P and Q is equivalent to the difference between Cross Entropy and Entropy.
+
+Prove that $$\Db_{KL}(P||Q) = H(P,Q) - H(P)$$
+
+\textbf{Interpretation:}
+KL divergence measures the expected number of extra bits are needed because we are using not the true distribution (Q) instead of the true distribution (P). 
+
+
+
+\begin{solve}
+\end{solve}
+
+\subsection{Gumbel and Softmax}
+
+We looked at the Gumbel-Max Trick briefly in class. 
+
+% think about why this is impoprtant for LLM decoding context. (eg:The key behind this trick is that while max is not a differentiable operation, 
+% adding a gumble noise allows us to get $\argmax$ operation possible that for)
+Note that for $X \sim \text{Gumbel}(\mu, \beta)$
+\[
+f_X(x)=\frac{1}{\beta}e^{-(z+e^{-z})} \quad \text{where } z = \frac{x - \mu}{\beta}, \qquad
+F_X(x)=e^{-e^{-(x-\mu)/\beta}}.
+\]
+
+Now, assume we have independent random variables $X_i \sim \text{Gumbel}(\mu_i, 1)$, where $i\in\{1,2\}$.
+
+What is the probability that $X_1=\max(X_1,X_2)$? In other words, what is $P[X_1>X_2]$?
+
+\textbf{Hint}:
+\begin{itemize}
+    \item What is the probability of $X_2$<x?
+    Recall how the CDF of a random variable is defined:
+    \[
+    CDF_{X_2}(x) = F_{X_2}(x) = P[X_2<x].
+    \]
+    This is for a specific value of $x$! Can you extend this by integrating over the distribution of $X_1$?
+    
+    \item \textbf{Relevance.} This shows that taking $\operatorname{argmax}$ of scores perturbed by Gumbel noise is equivalent to sampling with probabilities given by the $\operatorname{softmax}$ of the original scores.
+\end{itemize}
+
+\begin{solve}
+
+\end{solve}
+
+\subsection{How perplexed can you get?}
+
+\subsubsection{Choose your prompts}
+Come up with 3 prompts that you would expect to result in a generated sequence with low perplexity, and 3 prompts that you would expect to result in a sequence with high per-token perplexity, assuming greedy sampling until an EOS token or 64 tokens are generated. The prompt itself may be any length within a standard context length. Assume the model is a standard 7-8B autoregressive transformer base language model (dense, not MoE, not instruction tuned). Explain your reasoning behind each hypothesis -- you will provide a total of 6 prompts and 6 explanations. 
+
+\subsubsection{Testing and reflection}
+Now, test your hypotheses, for each of your six sequences, note: the per-token and global perplexity scores; an observation (even if your prediction of perplexity score was correct, you might e.g. note that the model kept generating more variations of the prompt instead of stopping); and a possible explanation for what you observed, especially if it differs from what you predicted (you do not have to verify these, e.g. ``Maybe the model was trained on math textbooks and that's why it kept generating more problems after the equation I prompted it with''). Report the model you used.
+
+\paragraph{Reflect: } Would you have chosen different prompts if you had been asked to assume an instruction tuned model? What if the vocab size had been smaller or larger? Overall, did you find it easier or harder to intuit sequence level vs per-token level perplexity scores?
+
+
+\subsection{Beam Search Puzzle}
+Run beam search on \texttt{Qwen-3-1.7B} using Hugging Face. Find an example where two of the beams produce identical text. Provide the input and outputs, and explain how this is possible. 
+
+\clearpage
+
+\subsection{One more step into Calibration}
+
+In Sep 2 Class, we talked about \textit{calibration} of models: a model is well-calibrated if the confidence score is well-correlated with the probability of correctness~\cite{niculescu2005predicting}. In this question, we will delve deeper into the methods for calculating calibration scores and compare their differences.
+
+Prior work~\cite{guo2017calibration} utilizes Expected Calibration Error (\texttt{ECE}) to compute the model calibration. \texttt{ECE} uses a bucketing approach that measures the \emph{overall calibration}.
+It assigns examples with similar confidence to the same buckets.
+Given the input $x$, ground truth $y$, prediction $\tilde{y}$, and $B_m$ denoting the $m$-th bucket for ($x$,$y$,$\tilde{y}$), for $N$ model predictions bucketed into $M$ buckets: $$\text{ECE} = \frac{1}{N}\sum_{m=1}^M |B_m| \cdot |\text{Acc}(B_m) - \text{Conf}(B_m)|,$$ where $\text{Acc}(B_m)$ and $\text{Conf}(B_m)$ denote the accuracy and averaged confidence for the samples in $B_m$, and $|B_m|$ denotes the cardinality of $B_m$.
+
+More recently, \cite{si-etal-2022-examining} designs Macro-average Calibration Error (\texttt{MacroCE}) to evaluate the quality of confidence calibration with different treatments on the correct and wrong predictions. For each split, \texttt{MacroCE} accumulates the individual calibration errors in a similar way as the Brier Score~\cite{glenn1950verification}. Read these papers and implementations, then answer the following questions.
+
+\subsubsection{Methods}
+In this question, you will be given three cases $C_1, C_2, C_3$, and your job is to compute their \texttt{ECE}, \texttt{MacroCE}, and \texttt{Brier} scores. For \texttt{ECE}, we assume that there are \textbf{2} buckets where each contains three examples. For brier score, we assume the confidence scores are predicting whether the predictions are correct (i.e., the actual outcome). Report your results in Table~\ref{tab:sec3.4_results} (rounded to three decimal places). 
+
+Each case has 6 examples, where each one is with a confidence score, a prediction, and a true answer, i.e., label, as shown in Table~\ref{tab:sec3.4_cases}.
+
+\begin{table}[h]
+%\scriptsize
+\small
+    \centering
+    %\begin{tabular}{p{1.8cm}|p{0.8cm}|p{0.9cm}|p{1.1cm}|p{1.1cm}}
+    \begin{tabular}{l|c|c|c}
+    \toprule
+        Cases & Conf. Scores   & Predictions & True answers \\
+         \midrule
+         $C_1$ & $[0.9, 0.9, 0.8, 0.8, 0.7, 0.7]$  & $[1,1,1,1,1,1]$  & $[1,0,1,0,1,1]$ \\
+         $C_2$ & $[0.9, 0.9, 0.9, 0.8, 0.8, 0.7]$  & $[1,1,1,1,1,1]$  & $[1,1,1,0,0,0]$ \\
+         $C_3$ & $[0.9, 0.9, 0.8, 0.8, 0.6, 0.6]$  & $[1,1,1,1,1,1]$  & $[1,1,1,1,1,0]$ \\
+         \bottomrule
+    \end{tabular}
+    \caption{Examples of each case. Conf. scores denote the model confidence scores.}
+    \label{tab:sec3.4_cases}
+\end{table}
+
+
+\begin{table}[h]
+%\scriptsize
+\small
+    \centering
+    %\begin{tabular}{p{1.8cm}|p{0.8cm}|p{0.9cm}|p{1.1cm}|p{1.1cm}}
+    \begin{tabular}{l|c|c|c}
+    \toprule
+        Cases & \texttt{ECE}   & \texttt{MacroCE} & Brier Score \\
+         \midrule
+         $C_1$ &  &  & \\
+         $C_2$ &  &  & \\
+         $C_3$ &  &  & \\
+         \bottomrule
+    \end{tabular}
+    \caption{Expected Calibration Error (\texttt{ECE}), Macro-average Calibration Error (\texttt{MacroCE}), and Brier scores of different cases. For all of them, the lower the better.}
+    \label{tab:sec3.4_results}
+\end{table}
+
+\clearpage
+\begin{solve}
+    
+\end{solve}
+
+
+\subsubsection{Details and Comparison.} 
+\paragraph{Temperature (re)scaling.} \cite{guo2017calibration, desai-durrett-2020-calibration} discuss the method and implications of temperature (re)scaling. Briefly describe what temperature scaling is, how you can find a good value for temperature, and give an example of how you would tune temperature for $C_2$ based on the results you computed above.
+
+\begin{solve}
+\end{solve}
+
+\paragraph{Bucket-canceling effect.} The bucketing design of \texttt{ECE} can trigger cancellation effects~\cite{si-etal-2022-examining}, i.e., the over- and under-confident instances within the same bucket may cancel with each other and hence not contribute to the overall error. Use 1 sentence to describe what bucket-canceling effect is and 1-3 sentences to give an example to describe how \texttt{MacroCE} can help. Hint: you can reuse $C_3$ to compare the difference between \texttt{ECE} and \texttt{MacroCE}.
+
+\begin{solve}
+\end{solve}
+
+\subsubsection{Calibration in long-form answers}
+In the previous sections, we described different ways to compute the calibration scores; These methods work well for measuring the overall and individual calibration for cases with categorical predictions and labels. However, for many applications of LLMs nowadays, the predictions are often a long-form answer with multiple words, e.g., IFEval~\cite{zhou2023instruction}. The answers are commonly evaluated in a \textit{LLM-as-a-judge} manner~\cite{zheng2023judging}.  
+
+Given two open-weight models, one generates the answers and another serves as a judge. The LLM judge can give a $0,1$ score for $N$ criteria (akin to the labels), along with a text-based free-form rationale. Each criterion can either cover a part or the whole of the long-form answer.
+Your task is to describe your design of a generalized version of the \texttt{MacroCE} to measure the confidence calibration for long-form answers with \textit{LLM-as-a-judge}. Use 1 sentence to describe your design, and describe 1 advantage and 1 disadvantage of your design, e.g., what cases can be captured and what can not. 
+
+\begin{solve}
+\end{solve}
+
+\clearpage
+
+\section{Programming}
+In the programming portion of this homework, you'll implement several decoding strategies yourself. Then, you'll use standard library implementations to compare decoding strategies on the shared tasks.
+
+\subsection{Bug hunting}
+First, a debugging problem to help you avoid some common mistakes :)
+
+There are two major issues with this implementation of diverse beam search \cite{vijayakumar2018diversebeamsearchdecoding} with hamming distance diversity scoring at each step and length normalized global sorting at the end. Describe what the issues are, what behaviors the issues would lead to, and submit your fixed implementation. Keep in mind a single issue might propagate and require multiple changes to fix completely.
+
+The broken implementation is provided in \texttt{diverse-beam-search-broken.py}. 
+An example call to the function is:
+\texttt{diverse\_beam\_search(model, tokenizer, prompt, beam\_width=6, num\_groups=3, max\_length=6, device=device, diversity\_strength=2.0)}, where the model and tokenizer come from a standard pre-trained Hugging Face model, and the prompt is a string.
+
+
+\paragraph{Reflections} In addition to your implementation submission, describe characteristics of a task that diverse beam search would be useful for, and a task that it would be unhelpful for. In class, it was mentioned that Hamming diversity is both relatively easy to compute and usually effective. Please also provide an example of a task or a prompt(s) that diverse beam search would be generally appropriate for, but that one might expect Hamming diversity scoring to be clearly \textit{insufficient} for. Propose an alternative scoring method that you would hope would outperform Hamming diversity (by some quantitative or qualitative measure). You do not have to empirically test your hypotheses, but please provide explanations for your choices, and describe what settings (or by what alternative measures, e.g. some aspect of efficiency) you might expect your alternative scoring method to \textit{not} be as useful for.
+
+\subsection{Hugging Face implementations: OddSampling}
+The current (as of September 2025) Hugging Face \texttt{transformers} \href{https://github.com/huggingface/transformers/blob/34595cf296b1eafce294fd9aa5f43cb53d014930/src/transformers/generation/logits_process.py#L1509}{implementation} of diverse beam search (and other inference algorithms) is modular and differs from the monolithic functions we provide for homework questions. Hugging Face \texttt{transformers} uses objects called \href{https://huggingface.co/docs/transformers/v4.56.0/en/internal/generation_utils#transformers.LogitsProcessor}{\texttt{LogitsProcessor}s} that handle only the postprocessing of scores at inference time. 
+
+Now imagine the ranking of next tokens where 1 is the most-probable next token and |V| is the least-probable next token. Write a LogitsProcessor that applies a decoding method called \textsc{OddSampling}, where we only sample from odd-numbered ranks in this ordered list (you can ignore ties). Provide the full text of your function below. 
+
+\begin{solve}
+
+\end{solve}
+
+
+\subsection{Implementing Mirostat}
+
+Mirostat \cite{basu2021mirostatneuraltextdecoding} is an inference algorithm in which the $k$ in top-$k$ sampling is dynamically adjusted at each generation step, towards a target ``surprise'' value $\tau$ directly related to perplexity. Specifically, at each step, the Zipf's exponent $\hat{s}$ is estimated from the observed distribution, and $\hat{s}$ is in turn used to estimate $k$. This is intended to yield a generated sequence that both avoids excessive repetition and incoherence. In this problem, you are asked to implement a Mirostat sampler. Start from the scaffolding code provided in \texttt{mirostat.py} -- note that, as in the buggy diverse beam search implementation from above, we assume a monolithic function implementation not seen in standard Hugging Face \texttt{transformers}.
+
+\subsubsection{Exploration and visualization}
+Now try out your implementation with: three different values of $\tau$; on two different prompts (Feel free to choose from: ``Once upon a time,'' ``If you give a mouse a cookie,'' ``The capital of France is,'' ``It was a dark and stormy night,'' ``3 + 5 = '', and the empty string prompt.); on two different model sizes (\texttt{meta-llama/Llama-3.2-1B} and \texttt{meta-llama/Llama-3.1-8B}). Generate until the total sequence length is 128, and use a temperature of 0.9, learning rate of 0.1, and initial $\mu=2\tau$. For each of the $3 * 2 * 2 = 12$ combinations, report:
+\begin{enumerate}
+    \item The sequence generated
+    \item Mean, median, and standard deviation of per-token perplexity
+    \item Sequence-level perplexity
+    \item Plot $k$, $\hat{s}$, $\mu$, and surprisal error against generation step. Feel free to combine these plots into a single figure for visual simplicity.
+\end{enumerate}
+
+Additionally, pick a single model size, prompt, and $\tau$ value, and include a set of 3 logit distribution plots for each $\tau$ value at generation steps 1, 10, and 100. Report which model, prompt, and $\tau$ you used.
+
+Write a few sentences about your observations. e.g. What hyperparameters and settings does Mirostat sampling seem most or least sensitive to? Did you observe anything surprising? In general, what use cases does Mirostat seem well-suited for?
+
+\subsection{Benchmarking decoding strategies for each task}
+
+For this task, you'll use \texttt{Qwen/Qwen3-4B}, \texttt{Qwen/Qwen3-4B-Instruct-2507}, and \texttt{Qwen/Qwen3-1.7B}. 
+
+Report results on the ``dev-test'' split of each shared task using:
+\begin{enumerate}
+    \item The default generation settings for each model, according to its Hugging Face \texttt{generation\_config}.
+    \item Greedy decoding.
+    \item Temperature sampling with temperature $\tau = 0.25$ and $\tau = 1.5$.
+    \item Beam search with beam widths $3$ and $25$.
+    \item Locally typical sampling; choose your own reasonable hyperparameters    
+\end{enumerate}
+
+Report the scores for each model, method, and task in table(s). Write a few sentences about your observations: is the same decoding strategy the best for each task and model size? How do the instruct and base model differ? Do you notice any pathologies of the outputs? 
+
+\subsection{Degenerate choices}
+Choose a pair of decoding strategies from class, A and B, and tune hyperparameters for each such that \texttt{Qwen/Qwen3-4B} with decoding strategy A underperforms 
+\texttt{Qwen/Qwen3-1.7B} with decoding strategy B on the MMLU shared task. Report results along with the details of the decoding strategies used, including the values of any hyperparameters you chose. 
+
+
+\clearpage
+\bibliography{main}
+\bibliographystyle{plain}
+
+\end{document}
