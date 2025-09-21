@@ -31,8 +31,8 @@ def mirostat(model, tokenizer, prompt, max_length=50, device='cpu', temperature=
         k = None
 
         # top k sampling
-        topk_logits = sorted_logits[0:k]
-        topk_inds = sorted_inds[0:k]
+        topk_logits = sorted_logits[:,0:k]
+        topk_inds = sorted_inds[:,0:k]
         topk_probs = torch.softmax(topk_logits, dim=1)
         next_tok = topk_inds[0, torch.multinomial(topk_probs, num_samples=1)]
         input_ids = torch.cat([input_ids, next_tok], dim=1)
