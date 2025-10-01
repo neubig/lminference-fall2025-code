@@ -1,0 +1,444 @@
+\documentclass{article}
+\usepackage{booktabs}
+% \usepackage[solutions]{vash_hwstyle}
+\usepackage[solutionsTA]{vash_hwstyle}
+
+\title{Homework-2\\
+11-664/763: Inference Algorithms for Language Modeling\\
+Fall 2025}
+\author{
+    \textbf{Instructors:} Graham Neubig, Amanda Bertsch \\
+    \\
+    \textbf{Teaching Assistants:} Clara Na, Vashisth Tiwari, Xinran Zhao
+}
+\date{\textbf{Due}: October 28th, 2025} 
+
+\begin{document}
+
+\maketitle
+
+\section*{Instructions}
+
+Please refer to the collaboration, AI use policy as specified in the course syllabus.
+
+\section{Shared Tasks}
+Throughout the semester, you will be working with data from three shared tasks. We host the data for each shared task on Hugging Face; you can access them at \textbf{\href{https://huggingface.co/datasets/vashistht/11763_datasets}{[this link]}}. We will generally ask for results on the ``dev-test'' split, which consists of 100 examples for each task, using the evaluation scripts provided. The remainder of the examples can be used for validation, tuning hyperparameters, or any other experimentation you would like to perform. The final shared task at the end of the semester will be evaluated on a hidden test set.
+
+\paragraph{Algorithmic}
+
+The task that the language model will tackle is N-best Path Prediction (Top-$P$ Shortest Paths).
+Given a directed graph $G=(V,E)$ with $|V|=N$ nodes labeled $0,\dots,N-1$ and non-negative integer edge weights $w:E\to{1,\dots,W}$, the task is to find the top-$P$ distinct simple paths from source $s=0$ to target $t=N-1$ minimizing the additive cost
+\begin{equation}
+c(\pi)=\sum_{(u,v)\in \pi} w(u,v).
+\end{equation}
+The output is a pair
+\begin{equation}
+\texttt{paths}=[\pi_1,\dots,\pi_P],\quad \texttt{weights}=[c(\pi_1),\dots,c(\pi_P)],
+\end{equation}
+sorted by non-decreasing cost.
+The language model will be expected to use tool calls\footnote{\url{https://platform.openai.com/docs/guides/function-calling}} to specify its answer.
+
+Evaluation compares predicted pairs $(\pi,c(\pi))$ against the reference set with the score
+\begin{equation}
+\mathrm{score}=\frac{\left| {(\pi,c(\pi))}{\text{pred}} \cap {(\pi,c(\pi))}{\text{gold}} \right|}{P}.
+\end{equation}
+
+
+
+\paragraph{MMLU medicine} 
+
+We will use the two medicine-themed splits of MMLU: college\_medicine and professional\_medicine. Evaluation is on exact match with the correct multiple-choice answer (e.g. ``A''). 
+\paragraph{Infobench} 
+
+Infobench provides open-ended queries with detailed evaluation rubrics. Evaluation \textbf{requires calling gpt-5-nano}; we expect that the total cost for evaluation for this homework will be substantially less than $\$5$. See the \href{https://arxiv.org/abs/2401.03601}{paper} for more information.
+
+\clearpage
+
+
+\section{Best-of-n and MBR [30 points]} 
+%[Amanda and Clara]
+In this section, you will be asked to implement, experiment with, and reflect on both best-of-n sampling \cite{beirami2025theoreticalguaranteesbestofn, ichihara2025evaluationbestofn} and Minimum Bayes Risk (MBR) decoding \cite{bickel-doksum-1977, eikema-aziz-2020-is} methods. These are methods for reranking \textit{multiple} outputs for the same input.
+
+You will be asked to submit relevant code.
+
+\subsection{Warm up}
+For this section, we'll be reranking a set of outputs for InfoBench. We will release a set of 50 outputs generated with vLLM and \texttt{Qwen3-4B} with a temperature setting of 0.2 for each of the 100 examples in the \texttt{dev\_test} split of the Infobench shared task, along with the InfoBench evaluation score  (using GPT-5-nano as the judge) for each of the outputs.
+
+What is the mean, median, and standard deviation of the number of unique generations per prompt? What is the average difference in InfoBench score between the best and worst completion for each prompt? Take a look at some of your generations and write just a sentence or two about what you observe (feel free to pick from: How do the generations tend to differ when they do? Do they vary in length? Are there generations that different in exact match but semantically similar? Are there any types of tasks or examples that seem to lead to more or less diverse outputs?)
+
+\paragraph{Deliverables:} code (submitted together with other parts of Q2 via \texttt{rerank-outputs.py}), three numbers (mean, median, and standard deviation), and your reflection sentence(s).
+
+\begin{solve}
+
+\end{solve}
+
+\subsection{Implementing methods for choosing the top output}
+Now we have 50 (not necessarily unique) outputs for each prompt. For this question, you'll be asked to implement a variety of methods for selecting the single best output, given a list of 50 outputs and possibly the input prompt. All of these methods should be implemented in a file, \texttt{rerank\_outputs.py}, which you will submit along with this homework. Each method should return \textbf{the score for every candidate output}, in the same order that the outputs were passed to the method.
+\begin{enumerate}
+    \item \textbf{Log probability:} The simplest option is to use the log probability under our model. Implement a method, \texttt{compute\_model\_prob(outputs, prompt)}, which computes the log-likelihood of each output.\footnote{Note: you may already have the log-probs for each output from your original generation of the outputs. If so, you can validate that this method returns log-probs \textit{close} to those you have saved, though they may not match exactly if you used an efficient inference library for the original generations.}
+    \item \textbf{A stronger model's log probability:} Extend your method above to take an optional third parameter, \texttt{model}, with the default being \texttt{Qwen3-4B}. For the stronger model, use \texttt{Qwen3-14B}.\footnote{Note that you do not need to specify thinking or non-thinking mode, as you are not generating any text.}
+    \item \textbf{Scalar reward model:} A scalar reward model is a function that maps state-action pairs to real-valued rewards. Scalar reward models are trained to automatically evaluate LLM outputs (typically with conditioning on inputs, and over entire sequences). Write a method, \texttt{compute\_scalar\_reward(outputs, prompt)} that uses  \href{https://huggingface.co/Skywork/Skywork-Reward-Llama-3.1-8B-v0.2}{\texttt{Skywork/Skywork-Reward-Llama-3.1-8B-v0.2}} \cite{liu2024skyworkrewardbagtricksreward} to compute scalar rewards based on both the input and output text.
+    \item \textbf{Pairwise reward:} One other common way to automatically evaluate LLM outputs is to compare them pairwise using a reward model. Use \href{https://huggingface.co/llm-blender/PairRM}{\texttt{llm-blender/PairRM}} \cite{jiang2023llmblenderPairRM} for this question. Take the score for each output to be the number of other outputs it beats in a pairwise comparison.\footnote{Note that this is only one of several ways of using a pairwise preference model.} 
+    \item \textbf{MBR with BLEU:} Now, we'll consider computing Minimum Bayes Risk (MBR) instead of using a reward model. Write a method, \texttt{mbr\_bleu}, that uses MBR with the metric BLEU to rank outputs. You may use an existing implementation of BLEU.
+    \item \textbf{MBR with BertScore:} Write a method, \texttt{mbr\_bertscore}, that performs MBR as above but using the neural metric BERTScore \cite{zhang2020bertscoreevaluatingtextgeneration}. You may use an existing implementation of BERTScore (e.g. the one in huggingface).
+\end{enumerate}
+\textbf{Deliverables:} a file, \texttt{rerank\_outputs.py}, implementing the above methods.
+
+
+
+\subsection{Improving efficiency for BERTScore-based MBR}
+By looking at the way BERTscore is computed, we can devise two tricks to make BERTScore-based MBR more efficient. You do \textit{not} have to implement either of these improvements (although your BERTScore MBR implementation will run faster if you do!). 
+
+\subsubsection{Reducing the number of comparisons}
+First, write out the BERTscore equation. For a set of $n$ documents, how many comparisons (i.e. computing BERTScore(A, B)) would you need to make to run MBR, in the naive implementation? How could you reduce the number of comparisons? Give both answers in terms of $n$, and explain how the reduction in number of comparisons is possible. 
+
+\begin{solve}
+    
+\end{solve}
+
+\subsubsection{Reducing the number of forward passes}
+A naive implementation of MBR with BERTScore requires $O(N^2)$ BERT forward passes. The second trick reduces the number of forward passes to only $O(N)$ BERT forward passes. Explain how this is possible.
+
+
+
+\begin{solve}
+    
+\end{solve}
+\textbf{Deliverables: The written responses above.}
+
+\subsection{Comparing methods for reranking}
+Now, run your methods above on your precomputed set of InfoBench outputs. \textbf{Save the scores} for each output according to each method; you may find them useful for the next problem. Complete the table below. ``Oracle'' refers to using the gold scores, and is the skyline for performance. Using \texttt{Qwen3-4B} log-probs is the baseline. If there is a tie in top score for a method, compute the top-1 score by randomly selecting one of the top-scoring outputs.
+
+\begin{solve}
+
+\begin{tabular}{lccc}
+\toprule
+Method & Top-1 score & Avg. rank of best output & Spearman rank correlation \\ \toprule
+Oracle & & 1 & 1.0 \\ 
+\texttt{Qwen3-4B} log-probs & & & \\ 
+\texttt{Qwen3-14B} log-probs & & & \\
+Scalar reward & & & \\
+Pairwise reward & & & \\
+MBR with BLEU & & & \\
+MBR with BERTScore & & & \\
+\bottomrule
+\end{tabular}
+\end{solve}
+
+
+Additionally, for each method (other than oracle), plot the scores according to that method versus the gold scores in a scatter-plot below. You should have six scatter-plots, one per method. 
+\begin{solve}
+    
+\end{solve}
+
+Discuss your findings in terms of average-case and worst-case performance. Which method would you choose for this task based on performance? Justify your answer.
+\begin{solve}
+    
+\end{solve}
+
+
+Discuss your findings in terms of the resources required for each task. You can speak qualitatively (e.g. discuss your impression of relative compute or wall-clock time required, without providing exact measurements). Which method would you choose for this task if you had to balance performance and efficiency? Justify your answer.
+\begin{solve}
+    
+\end{solve}
+
+
+Compute the length for the top-1 output for each example according to each method. Do you notice length biases in any of the methods? 
+\begin{solve}
+
+\begin{tabular}{lc}
+\toprule
+Method & Length of top-1 output \\ \toprule
+Oracle & \\ 
+\texttt{Qwen3-4B} log-probs &  \\ 
+\texttt{Qwen3-14B} log-probs &  \\
+Scalar reward & \\
+Pairwise reward & \\
+MBR with BLEU & \\
+MBR with BERTScore & \\
+\bottomrule
+\end{tabular}
+\end{solve}
+
+
+\textbf{Deliverables:} the graphs and analysis in this section. You do not need to provide your graphing code for this problem with your homework solutions.
+
+\subsection{Varying $n$}
+Starting from your original set of 50 output generations, subsample sets of 5, 10, and 20 outputs per model by random selection.
+
+For some (but not all) of the reranking methods above, you can reuse the scores you computed above for the outputs in your smaller set. Which methods do you need to recompute scores for?
+\begin{solve}
+    
+\end{solve}
+
+Now, fill out the tables below for your smaller subsets, recomputing reranking methods where necessary.
+\begin{solve}
+n=5:\\
+\begin{tabular}{lccc}
+\toprule
+Method & Top-1 score & Avg. rank of best output & Spearman rank correlation \\ \toprule
+Oracle & & 1 & 1.0 \\ 
+\texttt{Qwen3-4B} log-probs & & & \\ 
+\texttt{Qwen3-14B} log-probs & & & \\
+Scalar reward & & & \\
+Pairwise reward & & & \\
+MBR with BLEU & & & \\
+MBR with BERTScore & & & \\
+\bottomrule
+\end{tabular}
+
+n=10:\\
+\begin{tabular}{lccc}
+\toprule
+Method & Top-1 score & Avg. rank of best output & Spearman rank correlation \\ \toprule
+Oracle & & 1 & 1.0 \\ 
+\texttt{Qwen3-4B} log-probs & & & \\ 
+\texttt{Qwen3-14B} log-probs & & & \\
+Scalar reward & & & \\
+Pairwise reward & & & \\
+MBR with BLEU & & & \\
+MBR with BERTScore & & & \\
+\bottomrule
+\end{tabular}
+
+
+n=20:\\
+\begin{tabular}{lccc}
+\toprule
+Method & Top-1 score & Avg. rank of best output & Spearman rank correlation \\ \toprule
+Oracle & & 1 & 1.0 \\ 
+\texttt{Qwen3-4B} log-probs & & & \\ 
+\texttt{Qwen3-14B} log-probs & & & \\
+Scalar reward & & & \\
+Pairwise reward & & & \\
+MBR with BLEU & & & \\
+MBR with BERTScore & & & \\
+\bottomrule
+\end{tabular}
+
+\end{solve}
+
+Discuss. How do trends vary with the size of the set $n$? How much does scaling up $n$ increase the oracle score? If you had to set an $n$ for performing best-of-$n$ or MBR on this model and dataset, what would you choose, and why?
+\begin{solve}
+    
+\end{solve}
+
+\paragraph{Deliverables:} The results and discussion above. You do not need to upload any additional code for this subsection.
+
+
+%%%%%%%%%%%%%%%%%%%%
+\section{Self-Refine [30 points]}
+
+Recent work in self-refinement has shown that LLMs can iteratively improve their own outputs \cite{madaan2023selfrefineiterativerefinementselffeedback}. 
+\emph{Self-Refine} introduces a closed-loop framework where a model alternates between 
+\textbf{generation}, \textbf{critique}, and \textbf{refinement}, 
+in contrast to human-in-the-loop feedback systems. 
+
+In this problem, you will implement self-refinement and investigate factors that affect its efficacy.
+
+NOTE: The repo includes a bare-bones scaffolds. It exists to help you start quickly. Please feel free to change your structure. Any clean, reproducible solution is acceptable.
+
+\subsection{Implementation}
+Please refer to the paper for details on the algorithm. Implement self-refine for the following specifications:
+\begin{itemize}
+    \item \textbf{Datasets:} \texttt{GraphDev} and \texttt{MMLU\_Med} (\texttt{dev\_test} splits)
+    \item \textbf{Models:} \texttt{Qwen/Qwen3-4B} and \texttt{Qwen/Qwen3-0.6B}
+    \item \textbf{Iterations:} Run up to 4 total steps per example: $i=1$ (draft) + 3 refinements. Report metrics at each i
+    \item Set random seed $42$.
+\end{itemize}
+
+You can utilise remaining splits for validation and to explore different drafting, critiquing, and refinement strategies.
+
+For consistency, run up to 4 refinement iterations.
+
+
+\subsection{Analysis}
+
+\begin{enumerate}
+    \item  Compare two configurations that may use \emph{different} temperatures for the draft, critique, and refine stages (meaning $2$ different runs not $2^3$ runs)!
+    
+    There is no right answer here, this is for you to see what are the qualities in generation we would want at different stages of self-refinement. Refer to the paper for discussion of this.
+    
+    Report the performance of your specifications on the validation set (you can choose a reasonable subset from dev for this task).
+
+    \textbf{Note}: Going forward for the rest of the analysis, you can report the values for the specific temperature settings you choose, no need to sweep over temperatures.
+    %%%%%%
+    \begin{solve}
+    
+    \end{solve}
+    %%%%%%
+    \item Plot how accuracy changes across iterations. Show both (i) accuracy at each iteration $i$ and (ii) the best accuracy so far (i.e., mark an individual example correct if it has been correct for \textit{at least one} iteration).  
+    %%%%%%
+    \begin{solve}
+    
+    \end{solve}
+    %%%%%%
+    \item Analyze $P(\text{correct}_{i+1} \mid \text{correct}_{i})$ and $P(\text{correct}_{i+1} \mid \text{incorrect}_{i})$.  We want to see how self-refine improves upon an incorrect answer and how it affects where the response was already correct.
+
+    
+    Plot these results and provide at least one example where refinement improves an incorrect answer and one where it harms a correct one (if you see this) for each dataset.
+    %%%%%%
+    \begin{solve}
+    
+    \end{solve}
+    %%%%%%
+
+    \item  What differences do you see between the two models for each task? Comment on the initial accuracy, relative improvements (or the lack there of), and stability / response quality over the iterations.
+    %%%%%%
+    \begin{solve}
+    
+    \end{solve}
+    %%%%%%
+    \item Lastly, what do you think are the shortcomings of this method (in terms of performance, computational cost, etc.)? How can you improve it? 
+    %%%%%%
+    \begin{solve}
+    
+    \end{solve}
+    %%%%%%
+\end{enumerate}
+
+\section*{Deliverables}
+\begin{checklist}
+    \item Please include your main self-refine file as \texttt{self\_refine.py} with exact commands on the different models and temperatures in \texttt{run\_self\_refine.sh/slurm}
+    \item Plot(s): Accuracy, best-accuracy vs iter, plots showing $P(\text{correct}_{i+1} \mid \text{correct}_{i})$ and $P(\text{correct}_{i+1} \mid \text{incorrect}_{i}), \forall i \in [4]$ 
+    \item requirements.txt + README
+    \item results (output jsons and figures)
+    \item Written responses 
+\end{checklist}
+
+\clearpage
+\section{MCP and agentic APIs [30 points]}
+
+Recent advances in LLMs have fueled growing interest in building deep research systems that analyze information from various sources and produce a detailed report to answer challenging questions~\cite{geminiGeminiDeep,openaiIntroducingDeep,singh2025ai2,perplexity2025deepresearch}. In this question, we will explore how to use MCP and agentic APIs to build a simple deep research agent. The source code is provided in the \texttt{basic\_deepresearch} folder. Please follow the \texttt{README.md} for detailed instructions and \texttt{simple\_react.ipynb} for the workflow.
+
+\subsection{Implementation: A Basic Deep Research Agent}
+\label{sec:basic_deep_research}
+Your \textbf{Task 1} is to fill in some missing code in \texttt{react\_agent.py}. After that, you can make your agent work! You can play with the pipeline with code under \textbf{A basic ReAct Agent} in \texttt{simple\_react.ipynb}. You can also compare different browse tools by updating \texttt{react\_agent.yaml} to understand how they work.
+
+\subsection{Implementation: Deep Research for MMLU}
+\label{sec:short_form_tasks}
+
+Upon building up the agent pipeline, we further explore how to leverage the pipeline to help with your shared task. After understanding the pre-implemented search tool, your Task 2.1 is to build an MCP-style tool to support a callable evaluation for the graph shortest path problems, which can help your future Self-Refine pipeline built in a ReAct style. 
+
+Next, we move to utilize the deep research agent to answer knowledge-intensive questions. Finish your \textbf{Task 2.2}, and then you will be able to extend the MMLU inference pipeline we built previously. Save your best \texttt{results\_\{model\}\_30\_react\_agent\_mmlu.json} to show us your progress! 
+
+Your \textbf{Task 3} is to complete some analysis code and report the statistics as follows.
+
+Describe three settings you tried through altering the \texttt{react\_agent\_mmlu.yaml}, e.g., change the base models, number of documents, browse tools, and think-search cycles. Briefly introduce your variants and report the token usage for different steps in the following table (default configuration counts as 1).
+
+\begin{solve}
+Describe your variants:
+
+Variant 1: default config
+
+
+Variant 2: ...
+
+Variant 3: ...
+
+
+A Table for the accuracy and the number of tokens for each variant:
+
+\begin{tabular}{l|c|ccccc}
+\toprule
+Variant & Acc.& Thinking & Queries & Snippet Titles & Snippet Contents & Final Answers\\ \toprule
+% 1 & 665.0 & 27.0 & 113.3 & 1063.0 & 173.3 \\ 
+1 & - & - & - & - & - \\ 
+2 & - & - & - & - & - \\ 
+3 & - & - & - & - & - \\ 
+\bottomrule
+\end{tabular}
+    
+\end{solve}
+
+\subsection{Discussion: Evaluation of Long-form Tasks.}
+Besides the previously discussed short-form answers that are easily verifiable, i.e., with a number or a phrase as the answer. Another important usage of deep research agents is to generate long-form reports for open-ended questions, with statements grounded by the search. For example, generating a multi-section report with citations on the query: \textit{What is deep research?}
+
+Recently, researchers have been working on benchmarking these long-form generation tasks, and have proposed various benchmarks, including but not limited to \textbf{AstaBench-SQA-CS-V2}~\cite{bragg2025astabench} (page 44), \textbf{DeepResearch Bench}~\cite{du2025deepresearch}, \textbf{DeepScholar Bench}~\cite{patel2025deepscholarbench}, and \textbf{ResearchQA}~\cite{yifei2025researchqa}. Read DeepResearch Bench and DeepScholar Bench and answer the following questions:
+
+Q 4.3.1. How is citation evaluated? Write 3-4 sentences for one dataset you chose about the motivation and the design. Visualizations in ALCE~\cite{gao2023enabling} can be helpful to build an intuition.
+
+Q 4.3.2. What can be a potential problem of the current evaluation framework with citation or the report generation in general?  Write 3-4 sentences for your answer. You should include one problem, one example, and one suggested fix you can think of.
+
+
+
+\begin{solve}
+
+Q 4.3.1. Dataset Choice :\{\}
+
+
+Q 4.3.2.
+\end{solve}
+
+\paragraph{Deliverables:} Your code for Section~\ref{sec:basic_deep_research} and Section~\ref{sec:short_form_tasks}, as a completed version of the skeleton, together with your output JSON in the predefined formats. The results and discussion above. 
+
+
+\clearpage
+\section{Shared tasks [10 points]}
+\subsection{Summarizing your current progress}
+In Homework 1, we asked you to benchmark baseline performance on all three shared tasks using a variety of models and inference strategies. Throughout the previous sections of Homework 2, we asked you to try at least one other inference strategy on the same tasks, on a subset of the models from the original set (\texttt{Qwen/Qwen3-4B}, \texttt{Qwen/Qwen3-4B-Instruct-2507}, and \texttt{Qwen/Qwen3-1.7B}).
+
+For each model+task combination you ran from HW 1, copy your reported scores for the single best method + settings. 
+
+
+\begin{solve}
+    \begin{tabular}{lcc}
+\toprule
+Model & Decoding Settings & Score \\
+\midrule
+\multicolumn{3}{l}{\textbf{Graph}} \\
+\midrule
+\texttt{Qwen/Qwen3-4B} & & \\
+\texttt{Qwen/Qwen3-4B-Instruct-2507} & & \\ 
+\texttt{Qwen/Qwen3-1.7B} & & \\
+\midrule
+\multicolumn{3}{l}{\textbf{MMLU}} \\
+\midrule
+\texttt{Qwen/Qwen3-4B} & & \\
+\texttt{Qwen/Qwen3-4B-Instruct-2507} & & \\ 
+\texttt{Qwen/Qwen3-1.7B} & & \\
+\midrule
+\multicolumn{3}{l}{\textbf{InfoBench}} \\
+\midrule
+\texttt{Qwen/Qwen3-4B} & & \\
+\texttt{Qwen/Qwen3-4B-Instruct-2507} & & \\ 
+\texttt{Qwen/Qwen3-1.7B} & & \\
+\bottomrule
+\end{tabular}
+\end{solve}
+
+Now, fill out the table below with the \textit{single best method} so far for each task, across both Homework 1 and Homework 2. Note that, since your implementation or hyperparameters may vary slightly, we are not grading for a ``correct'' answer here; this is to help you keep track of where your best method so far stands on each dataset.
+\begin{solve}
+    \begin{tabular}{llcc}
+\toprule
+Task & Model & Decoding Settings & Score \\
+\midrule
+\textbf{Graph} & & & \\
+\midrule
+\textbf{MMLU} & & & \\ 
+\midrule
+\textbf{InfoBench} & & & \\ 
+\bottomrule
+\end{tabular}
+\end{solve}
+
+\subsection{Planning improvements}
+For each of the shared tasks, describe at least one thing that you hope will help improve performance over your current scores, other than tuning hyperparameters for a method that you have already tried. 
+
+These could be additional sampling algorithms discussed in lecture or researched on your own, combining specific strategies implemented for either of the homework assignments so far, or any other ideas you have. Write a 1-3 sentence description of your proposed methods for each of the tasks. You do \textit{not} have to implement your ideas for this homework (though it may be beneficial to implement these ideas for the end-of-semester shared task). 
+
+\begin{solve}
+    \textbf{Graph:}\\
+
+    \textbf{MMLU:} \\
+    
+    \textbf{InfoBench:}
+\end{solve}
+
+
+\paragraph{Deliverables:} The tables and written responses above. No code is required for this problem. 
+
+\bibliography{main}
+\bibliographystyle{plain}
+
+\end{document}

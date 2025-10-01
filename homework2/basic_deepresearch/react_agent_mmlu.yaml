@@ -1,0 +1,19 @@
+# React agent configuration 
+react_agent_base_url: "https://api.openai.com/v1"
+react_agent_model_name: "openai/gpt-4o-mini"
+react_agent_tokenizer_name: "openai/gpt-4o-mini"
+react_agent_api_key: "<your_openai_api_key>"
+
+# Search tool configuration
+search_tool_name: "serper"
+number_documents_to_search: 2
+search_timeout: 60
+
+# Browse tool configuration
+browse_tool_name: null  # Set to null to disable browsing, or "serper"/"crawl4ai" to enable
+browse_timeout: 60
+browse_max_pages_to_fetch: 2
+
+
+# ReAct workflow configuration
+num_think_search_cycles: 2  # Number of think-search cycles before final answer
