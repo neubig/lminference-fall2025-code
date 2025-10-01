@@ -1,0 +1,183 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{hwstyle}[HWStyle]
+
+% ---------- Options: show/hide solutions ----------
+\newif\ifhw@solutions     % student handout: placeholder box only
+\newif\ifhw@solutionsTA   % TA key: full solutions
+
+\DeclareOption{solutions}{\hw@solutionstrue \hw@solutionsTAfalse}
+\DeclareOption{solutionsTA}{\hw@solutionsTAtrue \hw@solutionsfalse}
+\DeclareOption{nosolutions}{\hw@solutionsfalse \hw@solutionsTAfalse}
+
+\ExecuteOptions{solutions}
+\ProcessOptions\relax
+
+% ---------- Core packages ----------
+\RequirePackage[margin=1in]{geometry}
+\RequirePackage{amsmath,amssymb,amsfonts,amsthm,mathrsfs,mathtools,bm}
+\RequirePackage{array,tabularx,booktabs,multirow,multicol}
+\RequirePackage{graphicx,subcaption,adjustbox,epstopdf,float}
+\RequirePackage{enumitem}
+% also replaces enumerate
+\setlist{itemsep=0.25em,topsep=0.25em}
+\RequirePackage{tikz}
+\usetikzlibrary{tikzmark}
+\RequirePackage{parskip}          % NIPS-like paragraphs
+\RequirePackage[compact]{titlesec}
+\RequirePackage{xcolor}
+\RequirePackage[table]{xcolor}
+\RequirePackage{caption}
+\captionsetup{labelfont=bf,font=bf}
+\RequirePackage{url}
+\RequirePackage{datetime}
+\RequirePackage{cancel}
+\RequirePackage{comment}
+\RequirePackage[many]{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\RequirePackage{listings}
+\RequirePackage{framed}
+\RequirePackage{cprotect}
+\RequirePackage{verbatimbox}
+\RequirePackage{setspace}
+\RequirePackage{arydshln}
+\RequirePackage{ifthen}
+% \RequirePackage{eulervm}          % Euler math (digits option handled by TeX distro)
+\RequirePackage[latin1]{inputenc} % pdflatex input enc
+\RequirePackage[T1]{fontenc}
+\RequirePackage[english]{babel}
+
+% Algorithms
+\RequirePackage{algorithm}
+\RequirePackage{algorithmicx}
+\RequirePackage[noend]{algpseudocode}
+
+% Hyperref LAST
+\RequirePackage[colorlinks=true,urlcolor=blue]{hyperref}
+
+% ---------- Global tweaks ----------
+\setstretch{1.2}
+
+% ---------- Code listing style ----------
+\definecolor{Code}{rgb}{0,0,0}
+\definecolor{Keywords}{rgb}{1,0,0}
+\definecolor{Comments}{rgb}{0,0.6,0}
+\definecolor{Strings}{rgb}{0,0,1}
+\definecolor{Numbers}{rgb}{0.5,0,0.5}
+\definecolor{Background}{rgb}{0.95,0.95,0.95}
+\lstset{
+  language=Python,
+  basicstyle=\ttfamily\small\color{Code},
+  keywordstyle=\color{Keywords},
+  stringstyle=\color{Strings},
+  commentstyle=\color{Comments},
+  numberstyle=\tiny\color{Numbers},
+  stepnumber=1,
+  numbersep=10pt,
+  tabsize=4,
+  showspaces=false,
+  showstringspaces=false,
+  backgroundcolor=\color{Background}
+}
+
+% ---------- Convenience macros ----------
+\newcommand{\mathcolorbox}[2]{\colorbox{#1}{$\displaystyle #2$}}
+\newcommand\numberthis{\addtocounter{equation}{1}\tag{\theequation}}
+
+% Vectors / sets / fields
+\newcommand{\vc}[1]{\boldsymbol{#1}}
+\newcommand{\zerov}{\mathbf{0}}
+\newcommand{\Eb}{\mathbb{E}}
+\newcommand{\Pb}{\mathbb{P}}
+\newcommand{\Rb}{\mathbb{R}}
+\newcommand{\Zb}{\mathbb{Z}}
+\newcommand{\Lf}{\mathscr{L}}
+\newcommand{\Db}{\mathbb{D}}
+\newcommand{\Ib}{\mathbb{I}}
+
+% Partial derivatives and chain rule
+\newcommand{\p}{\partial}
+\newcommand{\adj}[1]{\frac{\partial \ell}{\partial #1}}
+\newcommand{\chain}[2]{\adj{#2} = \adj{#1}\frac{\partial #1}{\partial #2}}
+
+% Argmin/argmax
+\newcommand{\argmin}{\operatornamewithlimits{argmin}}
+\newcommand{\argmax}{\operatornamewithlimits{argmax}}
+
+% Bold roman vectors (lower/upper) — sample subset; add more if you like
+\newcommand{\xv}{\mathbf{x}}
+\newcommand{\yv}{\mathbf{y}}
+\newcommand{\wv}{\mathbf{w}}
+\newcommand{\Xv}{\mathbf{X}}
+\newcommand{\Wv}{\mathbf{W}}
+
+% Bold greek (sample subset; add as needed)
+\newcommand{\thetav}{\boldsymbol{\theta}}
+\newcommand{\phiv}{\boldsymbol{\phi}}
+\newcommand{\muv}{\boldsymbol{\mu}}
+\newcommand{\Sigmav}{\boldsymbol{\Sigma}}
+
+% Calligraphic (sample subset)
+\newcommand{\Xc}{\mathcal{X}}
+\newcommand{\Yc}{\mathcal{Y}}
+\newcommand{\Dc}{\mathcal{D}}
+\newcommand{\Lc}{\mathcal{L}}
+\newcommand{\Ic}{\mathcal{I}}
+
+\newlist{checklist}{itemize}{1}
+\setlist[checklist]{label=$\square$}
+% Attention marker
+\newcommand{\comebacktoit}[1]{\textbf{\textcolor{red}{\Large #1}} }
+
+% ---------- Solution environment ----------
+% Breakable tcolorbox when solutions are ON; hide content when OFF.
+% \newenvironment{solve}{%
+%   \ifhw@solutions
+%     \begin{tcolorbox}[enhanced,breakable,colframe=black,colback=white,coltext=black]
+%       \noindent\underline{\textbf{Solution:}}\par
+%   \else
+%     \comment
+%   \fi
+% }{%
+%   \ifhw@solutions
+%     \hfill $\square$
+%     \end{tcolorbox}
+%   \else
+%     \endcomment
+%   \fi
+% }
+% Default: student handout shows empty boxes
+% ---------- Options: student vs TA vs hidden ----------
+\newif\ifhw@solutions     % student handout: placeholder box only
+\newif\ifhw@solutionsTA   % TA key: full solutions
+
+\DeclareOption{solutions}{\hw@solutionstrue \hw@solutionsTAfalse}
+\DeclareOption{solutionsTA}{\hw@solutionsTAtrue \hw@solutionsfalse}
+\DeclareOption{nosolutions}{\hw@solutionsfalse \hw@solutionsTAfalse}
+
+% Default: student handout
+\ExecuteOptions{solutions}
+\ProcessOptions\relax
+% Adjustable placeholder height
+\newlength\hw@solboxheight
+\setlength{\hw@solboxheight}{1.5in}
+
+\newenvironment{solve}{%
+  \ifhw@solutionsTA
+    \begin{tcolorbox}[enhanced,breakable,colframe=black,colback=white,coltext=black]
+      \noindent\underline{\textbf{Solution:}}\par
+  \else\ifhw@solutions
+    \begin{tcolorbox}[enhanced,breakable,colframe=black,colback=white,coltext=black]
+      \noindent\underline{\textbf{Solution (write here):}}\par\vspace{\hw@solboxheight}
+    \end{tcolorbox}
+    \comment
+  \else
+    \comment
+  \fi\fi
+}{%
+  \ifhw@solutionsTA
+    \hfill $\square$
+    \end{tcolorbox}
+  \else
+    \endcomment
+  \fi
+}
