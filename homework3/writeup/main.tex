@@ -1,0 +1,605 @@
+\documentclass{article}
+\usepackage{booktabs}
+% \usepackage[solutions]{vash_hwstyle}
+\usepackage[solutionsTA]{vash_hwstyle}
+\definecolor{psc}{RGB}{30,120,120}
+\newcommand{\pseudo}[1]{\textbf{\textcolor{psc}{#1}}}
+
+\title{Homework-3\\
+11-664/763: Inference Algorithms for Language Modeling\\
+Fall 2025}
+\author{
+    \textbf{Your name (Andrew ID):} Test Student (tests)\\
+    \\
+    \textbf{Instructors:} Graham Neubig, Amanda Bertsch \\
+    \textbf{Teaching Assistants:} Clara Na, Vashisth Tiwari, Xinran Zhao
+}
+\date{\textbf{Due}: November 25, 2025} 
+
+\begin{document}
+
+\maketitle
+
+\section*{Instructions}
+
+Please refer to the collaboration and AI use policy as specified in the course syllabus. Additionally, note that \textbf{no off-the-shelf inference servers can be used (e.g. vLLM, sglang, etc)}. Assume NVIDIA GPU hardware with CUDA throughout this assignment.
+
+\section*{Shared Tasks}
+Throughout the semester, you will be working with data from three shared tasks. We host the data for each shared task on Hugging Face; you can access them at \textbf{\href{https://huggingface.co/datasets/vashistht/11763_datasets}{[this link]}}. We will generally ask for results on the ``dev-test'' split, which consists of 100 examples for each task, using the evaluation scripts provided. The remainder of the examples can be used for validation, tuning hyperparameters, or any other experimentation you would like to perform. The final shared task at the end of the semester will be evaluated on a hidden test set.
+
+\paragraph{Algorithmic}
+
+The task that the language model will tackle is N-best Path Prediction (Top-$P$ Shortest Paths).
+Given a directed graph $G=(V,E)$ with $|V|=N$ nodes labeled $0,\dots,N-1$ and non-negative integer edge weights $w:E\to{1,\dots,W}$, the task is to find the top-$P$ distinct simple paths from source $s=0$ to target $t=N-1$ minimizing the additive cost
+\begin{equation}
+c(\pi)=\sum_{(u,v)\in \pi} w(u,v).
+\end{equation}
+The output is a pair
+\begin{equation}
+\texttt{paths}=[\pi_1,\dots,\pi_P],\quad \texttt{weights}=[c(\pi_1),\dots,c(\pi_P)],
+\end{equation}
+sorted by non-decreasing cost.
+The language model will be expected to use tool calls\footnote{\url{https://platform.openai.com/docs/guides/function-calling}} to specify its answer.
+
+Evaluation compares predicted pairs $(\pi,c(\pi))$ against the reference set with the score
+\begin{equation}
+\mathrm{score}=\frac{\left| {(\pi,c(\pi))}{\text{pred}} \cap {(\pi,c(\pi))}{\text{gold}} \right|}{P}.
+\end{equation}
+
+
+
+\paragraph{MMLU medicine} 
+
+We will use the two medicine-themed splits of MMLU: college\_medicine and professional\_medicine. Evaluation is on exact match with the correct multiple-choice answer (e.g. ``A''). 
+\paragraph{Infobench} 
+
+Infobench provides open-ended queries with detailed evaluation rubrics. Evaluation \textbf{requires calling gpt-5-nano}; we expect that the total cost for evaluation for this homework will be substantially less than $\$5$. See the \href{https://arxiv.org/abs/2401.03601}{paper} for more information.
+
+\clearpage
+
+\section{Optimization for available hardware [25 points]}
+\label{sec:gpu_math}
+
+GPUs and other accelerator hardware have been a significant factor in the (re)surge(nce) of interest in and progress in artificial intelligence and neural machine learning since the early 2010s. Relatively few people who regularly publish at top AI/ML/NLP venues would claim to have a deep understanding of the inner workings of a GPU, however. For the curious, these are two very nicely written blogs that go over the GPU math in detail and discuss the bottlenecks of inference.
+
+\begin{itemize}
+    \item \href{https://kipp.ly/transformer-inference-arithmetic/}{Transformer Inference Arithmetic by Kipply} \cite{kipply_transformer_inference_arithmetic}
+    \item \href{https://horace.io/brrr_intro.html}{Making Deep Learning Go Brrrr From First Principles by Horace He} \cite{he_making_deep_learning_go_brrrr}
+\end{itemize}
+
+In general, there are enough well-maintained, open-source, high-level ML frameworks (e.g. PyTorch) and inference engines (e.g. vLLM) that an ML researcher or practitioner can usually get quite far in their career with just a handful of practical rules of thumb. Many of these practical rules of thumb revolve around GPU VRAM\footnote{the V stands for ``video''; a GPU is after all a graphics processing unit}, and transfers between it and ``regular'' system RAM. We want to avoid both out-of-memory (OOM) errors and excessive swapping to system RAM.
+
+
+\subsection{Warm-up}
+
+During standard autoregressive generation with an LLM, the GPU's VRAM is typically loaded with model weights, KV cache, and a small amount of overhead for model code, intermediate calculations that are not part of the KV cache, and framework overhead.\footnote{Though machines with larger VRAM size exist, the most common GPUs used with or for LLMs as of 2025 are around 80GB or around half the size (e.g. 48GB for an A6000 or L40; there are also 40GB A100s).} Briefly describe the key differences between LLM generation and training in terms of what is typically loaded into VRAM. What needs to be known and tracked? Is there more or less uncertainty in one? Write 2-3 sentences total.
+
+\begin{solve}
+    
+\end{solve}
+
+\subsection{Some GPU math questions}
+
+\subsubsection{Largest model that fits}
+
+What is the largest possible model size you could do a single forward pass\footnote{as we would do to evaluate a model-dataset combination for perplexity score -- not for auto-regressive generation}, on a single 80GB GPU? Assume model weights are at half (16-bit floating point) precision, and report to the nearest billion parameters. State your assumptions and show your work.
+
+\begin{solve}
+    
+\end{solve}
+
+\subsubsection{Largest sequence that fits}
+
+What is the largest possible sequence length you could generate to on a single L40S GPU, with a batch size of 8 and \href{https://huggingface.co/Qwen/Qwen3-14B}{\texttt{Qwen/Qwen3-14B}}? Assume the empty string prompt, and again assume half precision for model weights. Please show your work, state your assumptions, and report your answer to the nearest 10 tokens. Feel free to ignore overhead needed for torch and launch operations (i.e., consider only the VRAM size, model weights, and KV cache).
+
+\begin{solve}
+
+\end{solve}
+
+\subsubsection{Estimating KV cache sizes}
+
+The size of the KV cache for a single sequence depends on model configuration, sequence length, and the number of bytes per parameter:
+\begin{equation*}
+\text{KV Cache Size} = 2 \times S \times L \times n_{\text{kv}} \times d_{\text{head}} \times \text{bytes per parameter}\end{equation*}
+where $S$ is sequence length, $L$ is number of layers, $n_{\text{kv}}$ is number of KV heads, and $d_{\text{model}}$ is head dimension. Note: $d_{\text{model}} = n_{\text{kv}} \times d_{\text{head}}$ (or $n_{\text{q}} \times d_{\text{head}}$ for models with GQA/MQA).
+
+
+
+% In the first class, Graham went over the FLOPs needed for the transformer.  
+
+Using the model configs for models in the Qwen3 family, calculate the size of the KV cache needed to generate a sequence length of 32k, for batch sizes of 1, 2, and 4. Assume a static KV cache, half precision model weights, and the empty string prompt.
+
+\begin{solve}
+
+% https://www.baseten.co/blog/llm-transformer-inference-guide/#batching-memory-bound-processes-on-a-gpu?
+ 
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Model size (parameters)} & \textbf{Batch size 1} & \textbf{Batch size 2} & \textbf{Batch size 4} \\
+\hline
+\href{https://huggingface.co/Qwen/Qwen3-0.6B}{\texttt{Qwen/Qwen3-0.6B}} & & & \\
+\hline
+\href{https://huggingface.co/Qwen/Qwen3-1.7B}{\texttt{Qwen/Qwen3-1.7B}} & & & \\
+\hline
+\href{https://huggingface.co/Qwen/Qwen3-4B}{\texttt{Qwen/Qwen3-4B}} & & & \\
+\hline
+\href{https://huggingface.co/Qwen/Qwen3-8B}{\texttt{Qwen/Qwen3-8B}} & & & \\
+\hline
+\href{https://huggingface.co/Qwen/Qwen3-14B}{\texttt{Qwen/Qwen3-14B}} & & & \\
+\hline
+\href{https://huggingface.co/Qwen/Qwen3-32B}{\texttt{Qwen/Qwen3-32B}} & & & \\
+\hline
+\end{tabular}
+\label{tab:kv_cache}
+
+\end{solve}
+
+Please also show your work for one of your KV cache size calculations.
+\begin{solve}
+
+\end{solve}
+
+How does the size of KV scale with batch size? How does it scale with total parameter size in this model family? Feel free to include a figure(s) as your answer.
+\begin{solve}
+    
+\end{solve}
+
+
+\subsection{Basic benchmarking}
+\label{subsec:gpu_math_benchmark}
+
+In this question, you are asked to measure wall-clock time and token throughput.
+That is, input and output sequence lengths are random sequences intentionally constrained to specific values -- e.g. \texttt{torch.randint(0, vocab\_size), [1,64])} for \texttt{bs=1, input\_len=64}, with enforced minimum = maximum output sequence lengths. Use 1 GPU and keep the type of GPU consistent for all parts of this question. An 80GB GPU is preferred, but 40GB+ is also acceptable if necessary. State which type of GPU hardware you are using.
+
+\begin{solve}
+    
+\end{solve}
+
+\subsubsection{Varying input sequence lengths}
+
+Using \texttt{Qwen/Qwen3-8B} at half precision (use bfloat16 unless you must use older hardware that does not support it), a batch size of 8, and an output sequence length of 64 (new) tokens, sweep over input sequence lengths of $\{2^n : 0 \leq n \leq 15\}$. % expect OOM past like 8k for anyone working with smaller GPUs, might be ok on 80G though
+
+Be sure to perform 2-5 warm-up iterations (fewer needed with longer sequences), and don't forget to run \texttt{torch.cuda.synchronize()} after your model finishes running. Measure and report wall-clock time (just use \texttt{time.time()})\footnote{GPU execution time as measured with \texttt{torch.cuda.Event()} is often slightly less than the total CPU wall clock time, but in these particular settings, especially with single GPU inference with vanilla PyTorch/HF there is very little deviation expected} and token throughput in tokens / second -- each number should be an average over 10 batches. Fill out the table provided (only for subset of your sweep, but \textbf{also note configurations that led to OOM errors}), and include a figure(s), plotting each metric against each input sequence length. Figures may be either multiple plots or a single combined plot overlaying all three metrics on scales that make sense.
+
+\begin{solve}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Input length (tokens)} & \textbf{Time (s)} & \textbf{Throughput (tokens/s)} \\
+\hline
+1 & & \\
+\hline
+4 & & \\
+\hline
+16 & & \\
+\hline
+64 & & \\
+\hline
+256 & & \\
+\hline
+1024 & & \\
+\hline
+4096 & & \\
+\hline
+16384 & & \\
+\hline
+32768 & & \\
+\hline
+\end{tabular}
+\label{tab:input_sweep}
+\end{solve}
+
+
+\subsubsection{Varying output sequence lengths}
+Repeat the same as above, but with input size 64, and output sizes over $\{2^n : 0 \leq n \leq 8\}$.
+
+\begin{solve}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Output length (tokens)} & \textbf{Time (s)} & \textbf{Throughput (tokens/s} \\
+\hline
+1 & & \\
+\hline
+4 & & \\
+\hline
+16 & & \\
+\hline
+64 & & \\
+\hline
+256 & & \\
+\hline
+\end{tabular}
+\label{tab:output_sweep}
+\end{solve}
+
+
+\subsubsection{Varying the model}
+
+Now fix input=64 tokens, output=64, and repeat for three models: \href{https://huggingface.co/Qwen/Qwen3-1.7B}{\texttt{Qwen/Qwen3-1.7B}}, \href{https://huggingface.co/Qwen/Qwen3-8B}{\texttt{Qwen/Qwen3-8B}}, and \href{https://huggingface.co/allenai/OLMo-7B-0724-hf}{\texttt{allenai/OLMo-7B-0724-hf}}. No need for a figure for this one, but report all values in the table, and write 1-2 sentences of reflection and/or analysis.
+
+\begin{solve}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Model} & \textbf{Time (s)} & \textbf{Throughput (tokens/s} \\
+\hline
+\href{https://huggingface.co/Qwen/Qwen3-1.7B}{\texttt{Qwen/Qwen3-1.7B}} & & \\
+\hline
+\href{https://huggingface.co/Qwen/Qwen3-8B}{\texttt{Qwen/Qwen3-8B}} & & \\
+\hline
+\href{https://huggingface.co/allenai/OLMo-7B-0724-hf}{\texttt{allenai/OLMo-7B-0724-hf}} & & \\
+\hline
+\end{tabular}
+\label{tab:model_sweep}
+\end{solve}
+
+
+
+
+\section{Implementation of KV caching [20 points]}
+One essential component of generation with auto-regressive transformers is \textbf{KV caching}, or caching of computed key and value tensors from previous generation steps such that only a partial computation is needed at each new generation step. In this section, we ask you to 1) empirically observe inference with and without KV caching for a standard LLM, and 2) implement your own KV cache for a minimal transformer model.
+
+\subsection{Benchmarking with vs. without KV caching}
+In general, generating without a KV cache is quite slow and almost never done in practice, and longer sequences (both input and output) require more time. In this section, you will perform benchmarking across a variety of settings and gain intuitions about factors that can lead to meaningful differences in \textit{scaling patterns} seen as output sequence length grows. You will compare a short prompt with a long prompt, a small model with a larger model, and an older model with a newer model... We provide a starter notebook, \texttt{benchmark-kv-cache.ipynb} and a separate file containing the longer prompt (which gets tokenized to approximately 32k tokens, in \texttt{long\_prompt.txt}). You do \textit{not} need to submit the notebook.
+
+\subsubsection{Baseline figure}
+
+The ``baseline'' benchmark uses \href{https://huggingface.co/meta-llama/Llama-3.1-8B}{`meta-llama/Llama-3.1-8B'} (at half precision) and a short prompt, ``Once upon a time,''. See the notebook for more complete instructions. Show your figure comparing generation time with vs without a KV cache, and report the GPU hardware you are using as well. \textbf{For complete instructions, see \texttt{benchmark-kv-cache.ipynb}.}
+
+\begin{solve}
+\textbf{GPU:}
+
+\textbf{Figure:}
+
+\textbf{Description of trends:}
+
+\end{solve}
+
+\subsubsection{Longer prompt}
+Follow the instructions in the notebook to build a cache-vs-no-cache figure for the much longer prompt provided.
+
+\begin{solve}
+    \textbf{Figure:}
+    
+    \textbf{Comparison and explanation:}
+\end{solve}
+
+\subsubsection{Smaller model}
+Follow the instructions in the notebook to build a cache-vs-no-cache figure for a smaller model, \href{https://huggingface.co/meta-llama/Llama-3.2-1B}{`meta-llama/Llama-3.2-1B'}.
+
+\begin{solve}
+    \textbf{Figure:}
+    
+    \textbf{Comparison and explanation:}
+\end{solve}
+
+\subsubsection{Older model}
+Follow the instructions in the notebook to build a cache-vs-no-cache figure for a smaller model, \href{https://huggingface.co/meta-llama/Llama-2-7b-hf}{`meta-llama/Llama-2-7b-hf'}.
+
+\begin{solve}
+    \textbf{Figure:}
+    
+    \textbf{Comparison and explanation:}
+\end{solve}
+
+% Copied from notebook:
+% ## Benchmarking with vs without KV caching
+% 
+% 1. Use [`meta-llama/Llama-3.1-8B`](https://huggingface.co/meta-llama/Llama-3.1-8B) and sweep `max_new_tokens`=`min_new_tokens` by powers of two from 1 to 512, using the same short prompt ("Once upon a time,") for all output sequence lengths. Plot time vs output sequence length.
+% 2. Now repeat the same with `use_cache=False` in `model.generate()` -- add this plot to the same figure. Make sure to include a legend and descriptive labels/titles. Describe the trends you see in 1-2 sentences -- play around with both log scales and linear scales for a clearer idea of the trends -- **you will only need to include one version in your report**, however.
+% 3. Repeat 1-2 with a much longer prompt, read in from `long_prompt.txt`. **For this question, you only need to sweep from 1 to 32 without the KV cache -- with KV cache, you should be able to reach 512 without issues.** In ~2 sentences, (instead of just comparing KV cache vs no KV cache) compare the trends you see with those from your first plot, and provide an explanation for the trends you observe.
+% 4. Repeat 1-2 with [`meta-llama/Llama-3.2-1B`](https://huggingface.co/meta-llama/Llama-3.2-1B). Again, in ~2 sentences, compare the trends you see with those from your first plot, and provide an explanation for the trends you observe.
+% 5. Repeat 1-2 with [`meta-llama/Llama-2-7b`](https://huggingface.co/meta-llama/Llama-2-7b). Once again, write ~2 sentences to compare the trends you see with those from your first plot, and provide an explanation for the trends you observe.
+
+% In total, you will include four (4) figures, one (1) explanation of the general kv vs no kv trend, and reflections for three (3) pairwise comparisons in your report. You may need to restart your kernel in between 
+
+
+\subsection{Implementing a KV cache}
+Begin with the starter code provided in \texttt{kv-cache-implementation.py} and submit your code along with your other deliverables. Be sure to include your name and andrewid at the top of your file in a comment. \textbf{Please leave the ``TODO'' lines intact in your code,} as this will help us with grading.
+
+
+\section{Batching of requests [15 points]}
+\label{sec:batching}
+
+In \S\ref{sec:gpu_math}, you were asked to consider the sizes of the models and data at inference time alongside the physical constraints of common GPU hardware. In this section, we focus on batching concerns specifically.
+
+\subsection{Conceptual questions}
+
+In LLM pre-training, documents are commonly packed together such that all sequences in each batch are a uniform maximum length. This allows for relatively token throughput and relatively high GPU utilization, but this is clearly not universally appropriate or practical at inference time when use cases and deployment settings vary.
+
+\subsubsection{Batch or no batch?}
+In general, inference with a batch size of one tends to lead to poor utilization in a modern GPU. However, it is often assumed or performed in practice. Describe \textit{two} examples of settings where inference with a batch size of 1 is appropriate or even necessary. Prioritize describing specific traits and characteristics of these settings, as opposed to specific instances of these settings (e.g. instead of just naming a specific dataset or model, describe the characteristics that justify its inclusion). Write 2-3 sentences for each example, including an explanation.
+
+\begin{solve}
+
+\end{solve}
+
+\subsubsection{Static vs. dynamic vs. continuous batching}
+Naive batched inference pads sequences to the longest in each batch. In practice, these days it is almost always best to use an inference engine like vLLM or SGLang that does continuous batching, but not all inference settings are created equal, and not all inference optimizations are universally helpful. Describe \textit{one} example of a setting where the benefits of continuous batching over naive batched inference might be relatively limited, and \textit{one} example of a setting where continuous batching would be especially helpful in reducing some meaningful efficiency metric.
+
+\begin{solve}
+    
+\end{solve}
+
+
+\subsection{Pseudo-code for continuous batching with disaggregated prefill and decode}
+Continuous batching handles not only variation in input sequence lengths (where requests might be bucketed into groups of similar input sequence lengths in order to reduce the amount of padding needed) but also variation in output lengths (where requests finish at different times and are ``kicked out'' of the GPU at different times). Although requests are sometimes sent with information about minimum or maximum generation length, dynamic serving settings are inherently associated with some uncertainty about output sequence length.
+
+More recently, state of the art inference frameworks have begun supporting \textit{disaggregated} prefill and decode, or disaggregated PD \cite{zhong2024distservePDdisaggregation}. In this model, one spins up separate e.g. vLLM instances, each dedicated to just one of prefill or decode. KV caches calculated from prefill are saved and sent to the decode server. This has a number of advantages over traditional continuous batching: requests can have very similar input sizes but very different generation lengths, or vice versa; and prefill is compute-bound and highly parallelizeable, while decode requires sequential processing and tends to be a blocking process despite using less compute in a given moment.
+
+\paragraph{Your task:} For this problem, you are asked to write pseudo-code as parts of a basic implementation of continuous batching with PD disaggregation. You will design two concurrent loops (one for prefill and one for decode) that together serve all requests. We provide a pseudo-code \textsc{Request} class for you that you may modify if needed. Your pseudo-code should be at an abstract enough level that it should not matter whether or not the underlying memory is continuous.\footnote{In practice, paged attention \cite{Kwon2023EfficientMM} is typically used with continuous batching in order to alleviate the significant memory fragmentation and associated memory inefficiency that can occur with continuous batching.}
+
+\paragraph{Assumptions:}
+
+\begin{itemize}
+    \item Reasonable relevant variable such as \texttt{kv\_cache\_allocation}, \texttt{current\_prefill\_requests}, \texttt{curent\_decode\_requests}, and \texttt{finished\_requests} have been pre-initialized.
+    \item You may make up new auxiliary variables as needed.
+    \item Requests have been already been added to a queue, \texttt{requests\_remaining}
+    \item This is an offline serving setting such that we can assume no further requests will be added as the initial ones are being served
+    \item Basically, no failure modes: feel free to assume that KV cache storage, communication, and loading will always happen at a reasonable speed, that we never run out of disk space, and that we will never have occasion to requeue a request.
+\end{itemize}
+
+We are not looking for any one specific answer. Instead, credit will be awarded for well-thought algorithms with justification. That being said, be sure to address:
+\begin{enumerate}
+    \item Conditions for starting a queued request
+    \item Conditions for stopping generation for a request
+    \item State tracking and updating of requests
+    \item Batching requests appropriately for prefill, grouping by similar input lengths
+    \item Dynamic batch management in decode. You may optionally write an additional \textsc{Batch} class to help clarify your implementation
+    \item KV cache management (high-level: update, store, load, check sizes)
+\end{enumerate}
+
+Magical function calls you may imagine you have at your disposal (unless, of course, you choose to implement them as your additional feature):
+\begin{enumerate}
+    \item \texttt{does\_fit()}, which takes in a request, a collection of requests already in memory, and a total KV cache size and checks (at negligible cost) whether the single request can fit in the GPU. Intended to work for prefill or decode, with the caveat that it will default to the maximum sequence length for the model if no output sequence length is set (and so \texttt{does\_fit()} should be treated as a conservative bound).
+    \item \texttt{constrained\_get()}, a \textsc{PriorityQueue} class method which takes a condition (described in pseudo-code or natural language :)) and returns the next request that fulfills the condition. Intended to work for either prefill and decode
+\end{enumerate}
+
+For up to 3 bonus points on this assignment, incorporate \textit{one} of the following additional features (as pseudo-code) into your pseudo-code:
+\begin{enumerate}
+    \item A \textsc{PriorityQueue} class implementation that implements length bucketing logic
+    \item Explicit management of KV cache storage and communication/movement between servers
+    \item Want to do something else? Feel free to make a Piazza post and get pre-approval
+\end{enumerate}
+
+
+Feel free to write your pseudo-code in a separate file and ask an LLM for help with formatting it into LaTeX :) \pseudo{Please write your new lines of code and any modifications of provided code in this color}.
+
+\begin{solve}
+
+\begin{algorithm}[H]
+\caption{Class \textsc{Request}}
+\begin{algorithmic}[1]
+\State \textbf{class} Request:
+\State \quad \textbf{Input:} request\_id, input\_tokens, output\_length (optional)
+\State \quad self.id $\gets$ request\_id
+\State \quad self.input\_tokens $\gets$ input\_tokens
+\State \quad self.output\_length $\gets$ output\_length
+\State \quad self.kv\_cache $\gets$ \textbf{None} \textit{\# Hint: update during prefill, and check + update during decode}
+\State \quad self.state $\gets$ \textbf{``queued''} \textit{\# Hint: update this to ``prefill'' $\rightarrow$ ``decode'' $\rightarrow$ ``done''}
+\State \quad self.generated\_toks $\gets$ []
+\State \quad \pseudo{\# \textit{You may add additional initializations here}}
+\State
+\State \quad \textbf{Function} has\_prefill\_requests(self):
+\State \quad \quad \textbf{Return} True if not any requests have not yet reached ``decode'' or ``done''
+\State
+\State \quad \textbf{Function} has\_decode\_requests(self):
+\State \quad \quad \textbf{Return} True if not any requests have not yet reached ``done''
+\State
+\State \quad \textbf{Function} add\_token(self, token):
+\State \quad \quad Append token to self.generated\_toks
+\State
+\State \quad \pseudo{\textit{\# You may add additional functions here}}
+\State
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{Prefill loop (runs simultaneously with decode loop)}
+\begin{algorithmic}[1]
+\While{requests\_remaining.has\_prefill\_requests()}
+    \State \pseudo{\textit{\# TODO: your pseudo-code implementation here}}
+\EndWhile
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{Decode loop (runs simultaneously with prefill loop)}
+\begin{algorithmic}[1]
+\While{requests\_remaining.has\_decode\_requests()}
+    \State \pseudo{\textit{\# TODO: your pseudo-code implementation here}}
+    \State current\_decode\_requests.step() \textit{\# generates one token per sequence currently in the batch}
+    \State \pseudo{\textit{\# TODO: more pseudo-code}}
+\EndWhile
+\end{algorithmic}
+\end{algorithm}
+
+
+
+\end{solve}
+
+
+Use the space below to describe (in regular English) any assumptions you have made, along with a description of your algorithm and what it does. List and describe also any optional feature(s) you have included
+
+\begin{solve}
+    
+\end{solve}
+
+\section{Speculative Decoding [25 Points]}
+
+\subsection{Background}
+Large language models (LLMs) typically perform \textit{autoregressive decoding}, generating one token at a time. This process is often \textit{memory-bound}, meaning throughput is limited by the transfer of model weights rather than compute.
+
+\textbf{Speculative decoding} accelerates generation by using a small, fast \textit{draft model} to propose multiple tokens at once, which are then verified in parallel by a larger \textit{target model}.
+
+The method was independently introduced in \textit{Fast Inference from Transformers via Speculative Decoding}~\cite{leviathan2023fastinferencetransformersspeculative} and \textit{Accelerating Large Language Model Decoding with Speculative Sampling}~\cite{chen2023acceleratinglargelanguagemodel}.
+
+We will use \textbf{Algorithm~2} from the second paper as our reference for the implementation. Reading Theorem~1 from paper 2 is optional but helpful for intuition about why rejection sampling preserves the target distribution.
+
+\subsection{Benchmarking Forward Pass on a Single GPU}
+
+Using model \texttt{Qwen/Qwen3-4B}:
+\begin{itemize}
+    \item Measure the forward-pass time for batch sizes $B \in \{1, 2, 4, 8, 16\}$ at a fixed sequence length $S = 256$.
+    \item Run each configuration for 5 trials after appropriate warm-up iterations to obtain the average time.\\
+          Use \texttt{torch.cuda.Event}, \texttt{torch.cuda.time\_record} for accurate GPU timing.
+    \item \textbf{Plot results:} Batch Size vs.\ Wall-Clock Time (ms).
+    \item \textbf{Briefly discuss:} How does the forward cost scale with $B$, and why is this relevant for speculative decoding?
+\end{itemize}
+
+
+\begin{solve}
+\end{solve}
+
+\subsection{Implementation}
+Implement speculative decoding in the provided scaffold \texttt{specdec.py}. You only need to modify the \texttt{decode()} function; model loading and tokenization are handled for you.
+
+You are given 20 test prompts (\texttt{prompts.jsonl}) and a benchmarking script (\texttt{benchmark.py}) that runs inference over them. You may edit it for finer timing analysis.
+
+\begin{solve}
+\end{solve}
+
+\subsection{Evaluation}
+\label{specdec_eval_1}
+In practice, speedups depend on both software and hardware factors. In this section, you will analyze how different target--draft pairs and lookahead values affect throughput under heterogeneous request lengths.
+
+All experiments should be run on a single GPU. Each configuration should fit comfortably on GPUs with $\geq$48\,GB VRAM.
+
+Run your implementation with the following configurations:
+\begin{itemize}
+    \item Target = Qwen-3-8B; Drafts = \{Qwen-3-1.7B, Qwen-3-0.6B\}
+    \item Target = Llama-3.1-8B; Draft = Llama-3.2-1B
+\end{itemize}
+
+For each configuration, evaluate with speculative lookahead $\gamma \in \{2, 3, 5, 7\}$ and record:
+\begin{itemize}
+    \item Empirical speedup = (Wall-clock time of AR baseline) / (Wall-clock time of speculative decoding)
+    \item Empirical acceptance rate $\alpha$
+\end{itemize}
+
+\textbf{Deliverables}
+\begin{itemize}
+    \item Present results in a \textbf{table} and \textbf{plot the speedups vs.\ $\gamma$ for each target--draft pair}.
+
+    \item For your highest overall speedup configuration also comment on how the speedups vary per data source and why.
+\end{itemize}
+
+Include the GPU name and memory capacity in your table.  
+Use \texttt{torch.manual\_seed(42)} to ensure reproducibility.
+
+
+\begin{solve}
+    \begin{table}[H]
+        \centering
+        \begin{tabular}{l l c c c}
+        \toprule
+        Target Model & Draft Model & $\gamma$ & $\alpha$ & Speedup \\
+        \midrule
+        $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ \\
+        \bottomrule
+        \end{tabular}
+        \caption{Acceptance rate and speedup (3 model pairs * 4 gammas $= 12$ runs total).} % change this to the appropriate caption
+    \end{table}
+\end{solve}
+
+\subsection{Hardware Analysis}
+Speculative decoding assumes inference is primarily memory-bound rather than compute-bound. This balance can shift across GPU architectures.
+
+Select the best- and worst-performing configurations (in terms of speedup) and rerun them on a different GPU architecture. A \textit{configuration} refers to a (Target, Draft, $\gamma$) combination.
+
+%%%%%
+\begin{enumerate}
+    \item Create a table including: VRAM capacity, memory bandwidth (GB/s), compute capability, and tensor core specifications for both GPUs (for bf16).
+        \begin{solve}
+            % change this accordingly
+            \begin{table}[H]
+                \centering
+                \begin{tabular}{l l c c c}
+                \toprule
+                \midrule
+                $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ \\
+                \bottomrule
+                \end{tabular}
+                \caption{configs for 2 gpus}
+            \end{table}
+        \end{solve}
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \item Report speedup on both GPUs and compare results.
+        \begin{solve}
+            \begin{table}[H]
+                \centering
+                \begin{tabular}{l l c c c}
+                \toprule
+                \midrule
+                $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ \\
+                \bottomrule
+                \end{tabular}
+                \caption{4 runs (2 that you have from \S\ref{specdec_eval_1}, same configs on the new gpu) }
+            \end{table}
+        \end{solve}
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%
+    \item Briefly explain the observed differences in speedup, referencing hardware factors such as memory bandwidth and TFLOPS.
+    \begin{solve}
+        
+    \end{solve}
+\end{enumerate}
+
+
+\subsection{Analysis}
+
+\subsubsection{Background}
+Let $T_T$ and $T_D$ denote the time for one forward pass of the target and draft models respectively, and $T_V$ the verification time for $\gamma$ tokens by the target.
+
+The total speculative decoding time is:
+\[
+T_{\text{Total}}^{SD} = \gamma \cdot T_D(B, S) + T_V(B, S, \gamma).
+\]
+
+Given draft token acceptance rate $\alpha \in [0,1]$ and lookahead $\gamma$, the expected number of tokens generated in one verification step is~\cite{leviathan2023fastinferencetransformersspeculative}:
+\begin{equation}
+\Omega(\gamma, \alpha) = \frac{1 - \alpha^{\gamma + 1}}{1 - \alpha}.
+\label{eq:omega}
+\end{equation}
+
+Thus, the expected average latency per token is:
+\[
+T_{\text{Avg}}^{SD} = \frac{T_{\text{Total}}^{SD}}{\Omega(\gamma, \alpha)},
+\] and the relative latency (normalized by the target model's cost) is \cite{sadhukhan2025magicdecbreakinglatencythroughputtradeoff}:
+\begin{equation}
+\frac{T_{\text{Avg}}^{SD}}{T_T} = 
+\frac{1}{\Omega(\gamma, \alpha)} 
+\left( \gamma \cdot \frac{T_D}{T_T} + \frac{T_V(\gamma)}{T_T} \right).
+\label{eq:speedup}
+\end{equation}
+
+From Eq.~\ref{eq:speedup}, the speedup depends on three key factors: 
+(i) acceptance rate and expected generated tokens, 
+(ii) the draft-to-target cost ratio, and 
+(iii) verification overhead.
+
+\subsubsection{Questions}
+Combine your empirical results in the light of the the factors discussed above (and other relevant factors) to answer the following questions.
+
+\begin{enumerate}
+    \item How do speedup and acceptance rate vary with $\gamma$? How do these trends differ across draft sizes and model families and why?
+    \begin{solve}
+    \end{solve}
+
+    \item \textbf{Optimal $\gamma$:} As you saw from your experiments, the speedup is a function of the $\gamma$ value. 
+    
+    How would you determine the optimal $\gamma$ for your given system? Which factors should be considered?
+    \begin{solve}
+    \end{solve}
+
+    \item \textbf{Batched Inference:} What challenges arise for speculative decoding with batch size $>1$? Sketch pseudo-code for a batched version and discuss what makes the implementation challenging.
+
+    You might want to think about this in detail, as it can be very useful for the final project.
+    \begin{solve}
+    \end{solve}
+\end{enumerate}
+%%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+\bibliography{main}
+\bibliographystyle{unsrt}
+
+\end{document}
