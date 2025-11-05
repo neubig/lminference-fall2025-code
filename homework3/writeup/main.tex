@@ -234,7 +234,7 @@ Now fix input=64 tokens, output=64, and repeat for three models: \href{https://h
 
 
 
-\section{Implementation of KV caching [20 points]}
+\section{Implementation of KV caching [25 points]}
 One essential component of generation with auto-regressive transformers is \textbf{KV caching}, or caching of computed key and value tensors from previous generation steps such that only a partial computation is needed at each new generation step. In this section, we ask you to 1) empirically observe inference with and without KV caching for a standard LLM, and 2) implement your own KV cache for a minimal transformer model.
 
 \subsection{Benchmarking with vs. without KV caching}
@@ -296,7 +296,7 @@ Follow the instructions in the notebook to build a cache-vs-no-cache figure for 
 Begin with the starter code provided in \texttt{kv-cache-implementation.py} and submit your code along with your other deliverables. Be sure to include your name and andrewid at the top of your file in a comment. \textbf{Please leave the ``TODO'' lines intact in your code,} as this will help us with grading.
 
 
-\section{Batching of requests [15 points]}
+\section{Batching of requests [20 points]}
 \label{sec:batching}
 
 In \S\ref{sec:gpu_math}, you were asked to consider the sizes of the models and data at inference time alongside the physical constraints of common GPU hardware. In this section, we focus on batching concerns specifically.
@@ -423,7 +423,7 @@ Use the space below to describe (in regular English) any assumptions you have ma
     
 \end{solve}
 
-\section{Speculative Decoding [25 Points]}
+\section{Speculative Decoding [30 Points]}
 
 \subsection{Background}
 Large language models (LLMs) typically perform \textit{autoregressive decoding}, generating one token at a time. This process is often \textit{memory-bound}, meaning throughput is limited by the transfer of model weights rather than compute.
