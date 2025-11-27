@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 
 # Modal will give you a URL after deployment, you will need to edit yourModalID to your modal username
-url = "https://csna--csna-1-model-completions.modal.run"
+url = "https://yourModalID--andrewid-1-model-completions.modal.run"
 
 async def send_batch_at_scheduled_time(
     session: aiohttp.ClientSession,
