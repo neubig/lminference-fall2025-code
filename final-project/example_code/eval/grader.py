@@ -45,7 +45,14 @@ class ResponseParser:
         if not response:
             return None
         response = response.strip()
-        parsed = math_verify.parse(response)
+        # parse the answer after "The answer is (X)"
+        answer_match = re.search(r'The answer is\s*\(?([A-Z])\)?', response, re.IGNORECASE)
+        if answer_match:
+            answer = answer_match.group(1).upper()
+            return [answer]
+        else:
+            # Fallback to math_verify parsing
+            parsed = math_verify.parse(response)
         return parsed if parsed else None
 
     @staticmethod
