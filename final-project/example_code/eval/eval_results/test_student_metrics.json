@@ -14,9 +14,9 @@
     },
     "infobench": {
       "count": 2,
-      "accuracy": 1.0,
-      "total_score": 2.0
+      "accuracy": 0.8333333333333333,
+      "total_score": 1.6666666666666665
     }
   },
-  "overall_accuracy": 0.7777777777777777
+  "overall_accuracy": 0.7222222222222222
 }

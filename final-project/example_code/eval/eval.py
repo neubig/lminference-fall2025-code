@@ -10,6 +10,8 @@
 #     - `prompt`: The question prompt presented to the model.
 #     - `gold_answer`: The correct answer to the question.
 #     - (Not needed)`meta`: Additional metadata about the question, including unique id in the dataset and other fields.
+#
+# For this grading logic, we assume we can get the task and other info by essentially grouping by `index` from the hidden test set and joining with the student outputs on `index`.
 # ""
 
 # %%
@@ -31,10 +33,23 @@ nest_asyncio.apply()
 # ## create test dataset
 
 # %%
-import math_verify
-test = math_verify.parse("\\boxed{B}")
-gt = "B"
-math_verify.verify(gt, test)
+# import re
+# import math_verify
+# test = math_verify.parse("\\boxed{B}")
+# # response = "The answer is (C)."
+# response = "The answer is B."
+# gt = "B"
+
+# def extract_answer(response: str) -> str:
+#     answer_match = re.search(r'The answer is\s*\(?([A-Z])\)?', response, re.IGNORECASE)
+#     if answer_match:
+#         return [answer_match.group(1).upper()]
+#     return []
+
+# answer = extract_answer(response)
+# print(answer)
+# math_verify.verify(gt, test), math_verify.verify(gt, answer)
+
 
 # %%
 student_outputs_data = [
@@ -234,7 +249,7 @@ HIDDEN_TEST_PATH = "combined_dataset.jsonl"
 STUDENT_OUTPUT_PATH = "student_outputs.jsonl"
 OUTPUT_DIR = "./eval_results"
 STUDENT_ID = "test_student"
-EVAL_MODEL = "gpt-4o-mini"
+EVAL_MODEL = "gpt-5-nano-2025-08-07"
 
 if not openai_key:
     raise ValueError("OPENAI_API_KEY environment variable not set.")
@@ -247,14 +262,14 @@ print(f"Hidden test size: {len(hidden_test)}")
 print(f"Student outputs: {len(student_outputs)}")
 
 # %%
-# === Initialize InfoBench Evaluator ===
+# # === Initialize InfoBench Evaluator ===
 print("\nInitializing InfoBench evaluator...")
 infobench_evaluator = InfoBenchEvaluator(openai_key, EVAL_MODEL)
 
-print("Verifying OpenAI connection...")
-if not infobench_evaluator.verify_connection():
-    raise RuntimeError("OpenAI connection failed - cannot proceed")
-print("OpenAI connection verified ✓")
+# print("Verifying OpenAI connection...")
+# if not infobench_evaluator.verify_connection():
+#     raise RuntimeError("OpenAI connection failed - cannot proceed")
+# print("OpenAI connection verified ✓")
 
 
 # %%
@@ -263,7 +278,7 @@ print(f"\nEvaluating: {STUDENT_ID}")
 print("-" * 50)
 results = run_eval(hidden_test, student_outputs, infobench_evaluator)
 
-# === Calculate Metrics ===
+# === Calculate Metrics ===\
 metrics = calculate_metrics(results, STUDENT_ID)
 
 # %%
@@ -280,3 +295,9 @@ print(f"\nResults saved to: {results_path}")
 print(f"Metrics saved to: {metrics_path}")
 
 # %%
+
+
+# %%
+
+
+

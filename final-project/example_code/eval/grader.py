@@ -8,9 +8,9 @@ import re
 import asyncio
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, OpenAI
 import math_verify
-
+import time
 
 # ============================================================================
 # CONSTANTS
@@ -196,86 +196,53 @@ class GraphEvaluator:
 
 
 class InfoBenchEvaluator:
-    """Async InfoBench evaluator - processes decomposed questions in parallel"""
+    """Async InfoBench evaluator - processes decomposed questions  sequentially"""
 
-    def __init__(self, openai_api_key: str, eval_model: str = "gpt-4o-mini"):
+    def __init__(self, openai_api_key: str, eval_model: str = "gpt-5-nano-2025-08-07"):
         self.openai_api_key = openai_api_key
         self.eval_model = eval_model
-        self.client = AsyncOpenAI(api_key=openai_api_key)
+        self.client = OpenAI(api_key=openai_api_key)
 
     def verify_connection(self) -> bool:
         """Verify that we can connect to OpenAI API."""
-        async def _test():
-            try:
-                completion = await self.client.chat.completions.create(
-                    model=self.eval_model,
-                    messages=[{"role": "user", "content": "Say YES"}],
-                    max_tokens=5
-                )
-                return True
-            except Exception as e:
-                print(f"OpenAI connection failed: {e}")
-                return False
-        return asyncio.run(_test())
+        try:
+            _ = self.client.chat.completions.create(
+                model=self.eval_model,
+                messages=[{"role": "user", "content": "Say YES"}],
+            )
+            return True
+        except Exception as e:
+            print(f"OpenAI connection failed: {e}")
+            return False
 
-    async def _evaluate_single_question(
-        self,
-        question: str,
-        input_task: str,
-        output: str,
-        is_first_question: bool,
-        request_i: int
-    ) -> Optional[bool]:
-        """Evaluate a single decomposed question"""
-        message = []
-        if is_first_question:
-            if input_task:
-                content = f"{SYS_MSG}\n\nInput:\n\"{input_task}\"\n\nGenerated Text:\n\"{output}\"\n\nQuestion:\n{question}\n"
-            else:
-                content = f"{SYS_MSG}\n\nGenerated Text:\n\"{output}\"\n\nQuestion:\n{question}\n"
+    def _parse_yes_no(self, generation: str) -> Optional[bool]:
+        """Parse a YES/NO response from the evaluator model."""
+        generation = generation.strip()
+        if generation.lower().startswith("yes"):
+            return True
+        elif generation.lower().startswith("no"):
+            return False
+        elif "YES" in generation and "NO" not in generation:
+            return True
+        elif "YES" not in generation and "NO" in generation:
+            return False
         else:
-            content = f"{question}\n"
+            print(f"Ambiguous answer: {generation}")
+            return None
 
-        message.append({"role": "user", "content": content})
-
-        max_retries = 3
-        base_delay = 1
-
-        for attempt in range(max_retries):
-            try:
-                completion = await self.client.chat.completions.create(
-                    model=self.eval_model,
-                    messages=message,
-                    temperature=1.0,
-                )
-                generation = completion.choices[0].message.content
-
-                if generation.lower().startswith("yes") or generation.lower().startswith("no"):
-                    return generation.lower().startswith("yes")
-                elif "YES" in generation and "NO" not in generation:
-                    return True
-                elif "YES" not in generation and "NO" in generation:
-                    return False
-                else:
-                    print(f"Ambiguous answer: {generation}")
-                    return None
-
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    delay = base_delay * (2 ** attempt) + (0.1 * request_i)
-                    await asyncio.sleep(delay)
-                else:
-                    print(f"Failed after {max_retries} attempts: {e}")
-                    return None
-
-    async def _async_evaluate(
+    def _evaluate_sequential(
         self,
         request_i: int,
         meta: Dict[str, Any],
         predicted_solution: str
     ) -> Tuple[int, float, Dict[str, Any]]:
         """
-        Async evaluation - processes decomposed questions in parallel.
+        Sequential evaluation - processes decomposed questions while maintaining
+        conversation context (message history) across all questions.
+
+        This is the CORRECT implementation that keeps the generated output R
+        in context for all questions, not just the first one.
+
         Returns (request_i, score, details)
         """
         input_task = meta.get('input', '')
@@ -284,25 +251,67 @@ class InfoBenchEvaluator:
         if not decomposed_questions:
             return request_i, 0.0, {"error": "No decomposed questions found"}
 
-        question_tasks = []
-        for i, question in enumerate(decomposed_questions):
-            task = asyncio.create_task(
-                self._evaluate_single_question(
-                    question, input_task, predicted_solution,
-                    is_first_question=(i == 0), request_i=request_i
-                )
-            )
-            question_tasks.append(task)
-
-        results = await asyncio.gather(*question_tasks, return_exceptions=True)
-
+        # Initialize message list ONCE - this is the key fix!
+        # The message list accumulates the full conversation history
+        message = []
         bool_results = []
-        for result in results:
-            if isinstance(result, Exception):
-                bool_results.append(None)
-            else:
-                bool_results.append(result)
 
+        for i, question in enumerate(decomposed_questions):
+            # Build the content for this question
+            if len(message) == 0:
+                # First question: include system message, input, and generated output
+                if input_task:
+                    content = f"{SYS_MSG}\n\nInput:\n\"{input_task}\"\n\nGenerated Text:\n\"{predicted_solution}\"\n\nQuestion:\n{question}\n"
+                else:
+                    content = f"{SYS_MSG}\n\nGenerated Text:\n\"{predicted_solution}\"\n\nQuestion:\n{question}\n"
+            else:
+                # Subsequent questions: just the question (context is already in message history)
+                content = f"{question}\n"
+
+            # Append user message to conversation history
+            message.append({"role": "user", "content": content})
+
+            # Try to get evaluation with retries
+            max_retries = 3
+            success = False
+            result = None
+
+            for attempt in range(max_retries):
+                try:
+                    completion = self.client.chat.completions.create(
+                        model=self.eval_model,
+                        messages=message,
+                        temperature=1.0, # only default 1.0 is supported (0. didnt work)
+                    )
+                    generation = completion.choices[0].message.content
+                    # Append assistant response to conversation history
+                    message.append({"role": "assistant", "content": generation})
+                    print(f"Q{i+1}: {question} => {generation.strip()}")
+
+                    # Parse the YES/NO response
+                    result = self._parse_yes_no(generation)
+                    success = True
+                    break
+
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        delay = (2 ** attempt) + (0.1 * request_i)
+                        print(f"Retry {attempt + 1}/{max_retries} after error: {e}")
+                        time.sleep(delay)
+                    else:
+                        print(f"Failed after {max_retries} attempts: {e}")
+                        result = None
+
+            bool_results.append(result)
+
+            # Early stop if we get an ambiguous answer
+            if result is None:
+                # Fill remaining with None and break
+                remaining = len(decomposed_questions) - len(bool_results)
+                bool_results.extend([None] * remaining)
+                break
+
+        # Calculate score
         valid_results = [r for r in bool_results if r is not None]
         if not valid_results:
             return request_i, 0.0, {
@@ -311,7 +320,9 @@ class InfoBenchEvaluator:
                 "total_questions": len(decomposed_questions)
             }
 
-        ratio = sum(valid_results) / len(valid_results)
+        num_yes = sum(r is True for r in bool_results)
+        ratio = num_yes / len(decomposed_questions)
+
         return request_i, ratio, {
             "question_results": bool_results,
             "valid_count": len(valid_results),
@@ -319,8 +330,18 @@ class InfoBenchEvaluator:
         }
 
     def evaluate(self, request_i: int, meta: Dict[str, Any], predicted_solution: str) -> Tuple[float, Dict[str, Any]]:
-        """Sync wrapper for async evaluation"""
-        _, score, details = asyncio.run(self._async_evaluate(request_i, meta, predicted_solution))
+        """
+        Evaluate an InfoBench example.
+
+        Args:
+            request_i: Index of the request (for logging/tracking)
+            meta: Dictionary containing 'input' and 'decomposed_questions'
+            predicted_solution: The model's generated output to evaluate
+
+        Returns:
+            Tuple of (score, details_dict)
+        """
+        _, score, details = self._evaluate_sequential(request_i, meta, predicted_solution)
         return score, details
 
 
